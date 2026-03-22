@@ -116,7 +116,7 @@ export function LoginForm() {
             <div className="inline-flex items-center justify-center w-12 h-12 mb-4">
               <Image src="/ESTRELLASALLE.png" alt="Estrella La Salle" width={48} height={48} />
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">GEAR</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">MOSQ</h1>
             <p className="text-xl text-foreground">Sistema de Gestión de Préstamos de Equipos Deportivos</p>
           </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -9,8 +10,7 @@ import {
   Menu,
   X,
   Moon,
-  Sun,
-  Star
+  Sun
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
@@ -41,7 +41,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-50 bg-gradient-to-r from-[#2d5a27] to-[#1e3a1a] text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -52,11 +52,18 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
             </button>
 
             <div className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur-md">
-              <Star className="h-6 w-6" />
+              <Image
+                src="/ESTRELLASALLE.png"
+                alt="Estrella La Salle"
+                width={26}
+                height={26}
+                className="h-6 w-6 object-contain"
+                priority
+              />
             </div>
 
             <div>
-              <h1 className="text-3xl font-black leading-none tracking-tight">GEAR</h1>
+              <h1 className="text-3xl font-black leading-none tracking-tight">MOSQ</h1>
               <p className="text-sm text-white/75">{title}</p>
             </div>
           </div>
@@ -83,7 +90,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-72 border-r border-border bg-background text-foreground z-40 pt-20">
+      <aside className="hidden lg:flex fixed left-0 top-24 h-[calc(100vh-6rem)] w-72 border-r border-border bg-background text-foreground z-40">
         <div className="h-full flex flex-col">
           <div className="px-6 pb-4">
             <p className="text-sm font-semibold text-muted-foreground">Navegación</p>
@@ -129,7 +136,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
       </aside>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-24 z-50 flex lg:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileMenuOpen(false)}
