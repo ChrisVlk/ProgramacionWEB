@@ -2,17 +2,19 @@
 
 import React, { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
+import { useAuth } from '@/lib/auth-context';
+import { createLoan } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Trash2, ShoppingCart } from 'lucide-react';
 
 export const Cart: React.FC = () => {
   const { cart, removeFromCart, clearCart } = useCart();
+  const { user } = useAuth();
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   if (cart.length === 0) {
     return (
@@ -26,17 +28,35 @@ export const Cart: React.FC = () => {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    
-    // Aquí iría la lógica para enviar la solicitud con todos los equipos
-    console.log('Solicitud enviada con los siguientes equipos:', cart);
-    
-    setTimeout(() => {
-      setSubmitted(false);
-      clearCart();
-    }, 2000);
+    setError('');
+
+    if (!user) {
+      setError('Necesitas iniciar sesión para enviar la solicitud.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createLoan({
+        estudiante: Number(user.id),
+        detalles: cart.map((item) => ({
+          equipo: Number(item.equipment.id),
+          cantidad: item.quantity,
+        })),
+      });
+
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        clearCart();
+      }, 2000);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'No se pudo enviar la solicitud.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -98,6 +118,13 @@ export const Cart: React.FC = () => {
               ))}
             </div>
 
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">{error}</AlertDescription>
+              </Alert>
+            )}
+
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm">
@@ -111,14 +138,16 @@ export const Cart: React.FC = () => {
                 variant="outline"
                 onClick={clearCart}
                 className="flex-1"
+                disabled={isSubmitting}
               >
                 Vaciar Carrito
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={isSubmitting}
               >
-                Enviar Solicitud
+                {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
               </Button>
             </div>
           </form>

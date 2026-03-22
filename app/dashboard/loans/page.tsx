@@ -1,14 +1,40 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
-import { MOCK_LOAN_REQUESTS } from '@/lib/mock-data';
+import { fetchStudentLoans } from '@/lib/api-client';
+import { LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Home, FileCheck } from 'lucide-react';
 
 export default function StudentLoansPage() {
+  const [loans, setLoans] = useState<LoanRequest[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLoans = async () => {
+      try {
+        const data = await fetchStudentLoans();
+        if (isMounted) {
+          setLoans(data);
+        }
+      } catch {
+        if (isMounted) {
+          setLoans([]);
+        }
+      }
+    };
+
+    loadLoans();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -43,7 +69,7 @@ export default function StudentLoansPage() {
           </div>
 
           <div className="space-y-4">
-            {MOCK_LOAN_REQUESTS.map((request) => (
+            {loans.map((request) => (
               <Card key={request.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-4">
@@ -93,7 +119,7 @@ export default function StudentLoansPage() {
                 </CardContent>
               </Card>
             ))}
-            {MOCK_LOAN_REQUESTS.length === 0 && (
+            {loans.length === 0 && (
               <Card>
                 <CardContent className="pt-8 pb-8 text-center">
                   <p className="text-muted-foreground mb-4">No tienes solicitudes de préstamo aún</p>

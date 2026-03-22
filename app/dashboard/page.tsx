@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { EquipmentCardMinimal } from '@/components/equipment-card-minimal';
 import { BorrowDialog } from '@/components/borrow-dialog';
 import { Cart } from '@/components/cart';
 import { useCart } from '@/lib/cart-context';
-import { MOCK_EQUIPMENT, MOCK_LOAN_REQUESTS } from '@/lib/mock-data';
-import { Equipment } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
+import { fetchEquipment, fetchStudentLoans } from '@/lib/api-client';
+import { Equipment, LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Package, FileText } from 'lucide-react';
@@ -17,7 +18,46 @@ export default function StudentDashboard() {
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('catalog');
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loanRequests, setLoanRequests] = useState<LoanRequest[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const { cart } = useCart();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        const [equipmentData, loansData] = await Promise.all([
+          fetchEquipment(),
+          fetchStudentLoans(),
+        ]);
+
+        if (!isMounted) return;
+        setEquipment(equipmentData);
+        setLoanRequests(loansData);
+      } catch (error) {
+        if (!isMounted) return;
+        setEquipment([]);
+        setLoanRequests([]);
+      } finally {
+        if (isMounted) {
+          setLoadingData(false);
+        }
+      }
+    };
+
+    if (user) {
+      loadData();
+    } else {
+      setLoadingData(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const handleBorrow = (equipment: Equipment) => {
     setSelectedEquipment(equipment);
@@ -79,13 +119,18 @@ export default function StudentDashboard() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {MOCK_EQUIPMENT.map((equipment) => (
+                    {equipment.map((equipment) => (
                       <EquipmentCardMinimal
                         key={equipment.id}
                         equipment={equipment}
                         onBorrow={handleBorrow}
                       />
                     ))}
+                    {!loadingData && equipment.length === 0 && (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        No hay equipos disponibles en este momento.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -101,7 +146,7 @@ export default function StudentDashboard() {
                   </div>
 
                   <div className="space-y-4 max-w-4xl">
-                    {MOCK_LOAN_REQUESTS.map((request) => (
+                    {loanRequests.map((request) => (
                       <Card key={request.id}>
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between gap-4">
@@ -141,7 +186,7 @@ export default function StudentDashboard() {
                         </CardContent>
                       </Card>
                     ))}
-                    {MOCK_LOAN_REQUESTS.length === 0 && (
+                    {loanRequests.length === 0 && (
                       <div className="text-center py-12">
                         <p className="text-muted-foreground">No tienes solicitudes aún</p>
                       </div>

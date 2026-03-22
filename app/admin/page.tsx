@@ -1,24 +1,55 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { ReportsDownload } from '@/components/reports-download';
-import { MOCK_EQUIPMENT, MOCK_LOAN_REQUESTS } from '@/lib/mock-data';
+import { fetchAdminLoans, fetchEquipment } from '@/lib/api-client';
+import { Equipment, LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   BarChart3, 
-  Settings, 
   Package,
   FileText,
   AlertTriangle
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const totalRequests = MOCK_LOAN_REQUESTS.length;
-  const pendingRequests = MOCK_LOAN_REQUESTS.filter(r => r.status === 'pending').length;
-  const totalEquipment = MOCK_EQUIPMENT.reduce((sum, eq) => sum + eq.total, 0);
-  const availableEquipment = MOCK_EQUIPMENT.reduce((sum, eq) => sum + eq.available, 0);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loans, setLoans] = useState<LoanRequest[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        const [equipmentData, loansData] = await Promise.all([
+          fetchEquipment(),
+          fetchAdminLoans(),
+        ]);
+
+        if (!isMounted) return;
+        setEquipment(equipmentData);
+        setLoans(loansData);
+      } catch {
+        if (!isMounted) return;
+        setEquipment([]);
+        setLoans([]);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalRequests = loans.length;
+  const pendingRequests = loans.filter((r) => r.status === 'pending').length;
+  const totalEquipment = equipment.reduce((sum, eq) => sum + eq.total, 0);
+  const availableEquipment = equipment.reduce((sum, eq) => sum + eq.available, 0);
+  const categoriesCount = useMemo(() => new Set(equipment.map((item) => item.category)).size, [equipment]);
 
   const navItems = [
     { label: 'Dashboard', href: '/admin', icon: <BarChart3 className="w-4 h-4" /> },
@@ -79,7 +110,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {new Set(MOCK_EQUIPMENT.map(e => e.category)).size}
+                  {categoriesCount}
                 </p>
                 <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
                   tipos de equipos
@@ -95,7 +126,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {Math.round((availableEquipment / totalEquipment) * 100)}%
+                  {totalEquipment > 0 ? Math.round((availableEquipment / totalEquipment) * 100) : 0}%
                 </p>
                 <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
                   equipos disponibles
@@ -116,7 +147,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {MOCK_LOAN_REQUESTS.slice(0, 3).map((request) => (
+                  {loans.slice(0, 3).map((request) => (
                     <div key={request.id} className="flex items-center justify-between pb-4 border-b border-border last:border-0">
                       <div>
                         <p className="font-semibold text-sm text-foreground">
@@ -150,7 +181,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {MOCK_EQUIPMENT.slice(0, 3).map((eq) => {
+                  {equipment.slice(0, 3).map((eq) => {
                     const percentage = (eq.available / eq.total) * 100;
                     return (
                       <div key={eq.id}>

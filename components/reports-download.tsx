@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, FileText } from 'lucide-react';
-import { generateExcelReport, downloadExcelReport, generateCSVReport, downloadReport } from '@/lib/report-service';
-import { MOCK_LOAN_REQUESTS } from '@/lib/mock-data';
+import { generateCSVReport, downloadReport } from '@/lib/report-service';
+import { downloadBlob, downloadExcelReportFromApi, fetchAdminLoans } from '@/lib/api-client';
 import { useNotifications } from '@/lib/notifications-context';
 
 export function ReportsDownload() {
@@ -14,80 +14,68 @@ export function ReportsDownload() {
 
   const handleDownloadExcel = () => {
     setIsLoading(true);
-    try {
-      const reportData = MOCK_LOAN_REQUESTS.map((request) => ({
-        id: request.id,
-        fecha: new Date(request.requestDate).toLocaleDateString('es-NI'),
-        horaEntrega: '09:00 AM',
-        horaDevolucion: new Date(request.dueDate).toLocaleTimeString('es-NI'),
-        numeroCarnet: 'A00123456',
-        nombreEstudiante: request.studentName,
-        carrera: 'Ingeniería en Sistemas',
-        año: '3er Año',
-        descripcionEquipo: request.equipmentName,
-        cantidad: request.quantity,
-        personaEntrega: 'Juan Pérez',
-        personaRecibe: request.studentName,
-        estado: request.status,
-      }));
+    (async () => {
+      try {
+        const { blob, filename } = await downloadExcelReportFromApi();
+        downloadBlob(blob, filename);
 
-      const htmlContent = generateExcelReport(reportData);
-      const timestamp = new Date().toISOString().slice(0, 10);
-      downloadExcelReport(htmlContent, `reporte-prestamos-${timestamp}.xls`);
-
-      addNotification(
-        'Reporte Descargado',
-        'El reporte en Excel ha sido descargado exitosamente',
-        'success'
-      );
-    } catch (error) {
-      addNotification(
-        'Error',
-        'No se pudo descargar el reporte',
-        'error'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+        addNotification(
+          'Reporte Descargado',
+          'El reporte en Excel ha sido descargado exitosamente',
+          'success'
+        );
+      } catch (error) {
+        addNotification(
+          'Error',
+          'No se pudo descargar el reporte',
+          'error'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   };
 
   const handleDownloadCSV = () => {
     setIsLoading(true);
-    try {
-      const reportData = MOCK_LOAN_REQUESTS.map((request) => ({
-        id: request.id,
-        fecha: new Date(request.requestDate).toLocaleDateString('es-NI'),
-        horaEntrega: '09:00 AM',
-        horaDevolucion: new Date(request.dueDate).toLocaleTimeString('es-NI'),
-        numeroCarnet: 'A00123456',
-        nombreEstudiante: request.studentName,
-        carrera: 'Ingeniería en Sistemas',
-        año: '3er Año',
-        descripcionEquipo: request.equipmentName,
-        cantidad: request.quantity,
-        personaEntrega: 'Juan Pérez',
-        personaRecibe: request.studentName,
-        estado: request.status,
-      }));
+    (async () => {
+      try {
+        const loans = await fetchAdminLoans();
+        const reportData = loans.map((request) => ({
+          id: request.id,
+          fecha: new Date(request.requestDate).toLocaleDateString('es-NI'),
+          horaEntrega: new Date(request.requestDate).toLocaleTimeString('es-NI'),
+          horaDevolucion: new Date(request.dueDate).toLocaleTimeString('es-NI'),
+          numeroCarnet: request.studentId,
+          nombreEstudiante: request.studentName,
+          carrera: 'N/D',
+          año: 'N/D',
+          descripcionEquipo: request.equipmentName,
+          cantidad: request.quantity,
+          personaEntrega: 'N/D',
+          personaRecibe: request.studentName,
+          estado: request.backendStatus || request.status,
+        }));
 
-      const csvContent = generateCSVReport(reportData);
-      const timestamp = new Date().toISOString().slice(0, 10);
-      downloadReport(csvContent, `reporte-prestamos-${timestamp}.csv`);
+        const csvContent = generateCSVReport(reportData);
+        const timestamp = new Date().toISOString().slice(0, 10);
+        downloadReport(csvContent, `reporte-prestamos-${timestamp}.csv`);
 
-      addNotification(
-        'Reporte Descargado',
-        'El reporte en CSV ha sido descargado exitosamente',
-        'success'
-      );
-    } catch (error) {
-      addNotification(
-        'Error',
-        'No se pudo descargar el reporte',
-        'error'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+        addNotification(
+          'Reporte Descargado',
+          'El reporte en CSV ha sido descargado exitosamente',
+          'success'
+        );
+      } catch (error) {
+        addNotification(
+          'Error',
+          'No se pudo descargar el reporte',
+          'error'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   };
 
   return (

@@ -1,99 +1,76 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, AuthContextType } from './types';
+import { AUTH_TOKEN_KEY, fetchCurrentUser, loginWithApi } from '@/lib/api-client';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const MOCK_USERS = {
-  'student@ulsa.edu.ni': {
-    id: '2',
-    email: 'student@ulsa.edu.ni',
-    name: 'Juan García',
-    role: 'student' as const,
-  },
-  'admin@ulsa.edu.ni': {
-    id: '1',
-    email: 'admin@ulsa.edu.ni',
-    name: 'Admin User',
-    role: 'admin' as const,
-  },
-  'bienestar.estudiantil@ulsa.edu.ni': {
-    id: '3',
-    email: 'bienestar.estudiantil@ulsa.edu.ni',
-    name: 'Bienestar Estudiantil',
-    role: 'admin' as const,
-  },
-  'd.asesoria-estudiantil@ulsa.edu.ni': {
-    id: '4',
-    email: 'd.asesoria-estudiantil@ulsa.edu.ni',
-    name: 'Dirección de Asesoría Estudiantil',
-    role: 'admin' as const,
-  },
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const parseJwt = (token: string) => {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    );
+  useEffect(() => {
+    let isMounted = true;
 
-    return JSON.parse(jsonPayload);
-  };
+    const bootstrap = async () => {
+      if (typeof window === 'undefined') {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      try {
+        const currentUser = await fetchCurrentUser();
+        if (isMounted) {
+          setUser(currentUser);
+        }
+      } catch {
+        window.localStorage.removeItem(AUTH_TOKEN_KEY);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
-      if (mockUser && password === 'password') {
-        setUser(mockUser);
-        return mockUser;
-      } else {
-        throw new Error('Invalid credentials');
+      const response = await loginWithApi(email, password);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(AUTH_TOKEN_KEY, response.token);
       }
+      setUser(response.user);
+      return response.user;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const loginWithGoogle = useCallback(async (credential: string) => {
-    setLoading(true);
-    try {
-      // NOTE: For a real production app, verify this credential server-side.
-      const payload = parseJwt(credential);
-      const email = payload.email as string;
-      const name = payload.name as string;
-
-      const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
-      const user: User = mockUser ?? {
-        id: email,
-        email,
-        name,
-        role: 'student',
-      };
-
-      setUser(user);
-      return user;
-    } catch (error) {
-      throw new Error('Google sign-in failed');
-    } finally {
-      setLoading(false);
-    }
+  const loginWithGoogle = useCallback(async (_credential: string) => {
+    throw new Error('Google sign-in is not configured in backend yet.');
   }, []);
 
   const logout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
     setUser(null);
   }, []);
 

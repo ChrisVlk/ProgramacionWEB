@@ -1,10 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
-import { MOCK_EQUIPMENT } from '@/lib/mock-data';
+import { createEquipment, deleteEquipment, fetchEquipment, updateEquipment } from '@/lib/api-client';
 import { Equipment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,34 +30,79 @@ import {
 } from 'lucide-react';
 
 export default function AdminEquipmentPage() {
-  const [equipment, setEquipment] = useState<Equipment[]>(MOCK_EQUIPMENT);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Equipment>>({});
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadEquipment = async () => {
+      try {
+        const data = await fetchEquipment();
+        if (isMounted) {
+          setEquipment(data);
+        }
+      } catch {
+        if (isMounted) {
+          setEquipment([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadEquipment();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleEdit = (item: Equipment) => {
     setEditingId(item.id);
     setFormData(item);
   };
 
-  const handleSave = () => {
-    if (editingId) {
-      setEquipment(equipment.map(item =>
-        item.id === editingId ? { ...item, ...formData } : item
-      ));
+  const handleSave = async () => {
+    const nombre = formData.name?.trim() || '';
+    const descripcion = formData.description?.trim() || '';
+    const cantidadTotal = Number(formData.total || 0);
+    const cantidadDisponible = Number(formData.available || 0);
+
+    if (!nombre || cantidadTotal < 0 || cantidadDisponible < 0) {
+      return;
+    }
+
+    if (editingId && editingId !== 'new') {
+      const updated = await updateEquipment(editingId, {
+        nombre,
+        descripcion,
+        cantidad_total: cantidadTotal,
+        cantidad_disponible: cantidadDisponible,
+      });
+      setEquipment((prev) => prev.map((item) => (item.id === editingId ? updated : item)));
     } else {
-      setEquipment([...equipment, {
-        ...formData,
-        id: Date.now().toString(),
-      } as Equipment]);
+      const created = await createEquipment({
+        nombre,
+        descripcion,
+        cantidad_total: cantidadTotal,
+        cantidad_disponible: cantidadDisponible,
+      });
+      setEquipment((prev) => [...prev, created]);
     }
     setEditingId(null);
     setFormData({});
     setIsAddingNew(false);
   };
 
-  const handleDelete = (id: string) => {
-    setEquipment(equipment.filter(item => item.id !== id));
+  const handleDelete = async (id: string) => {
+    await deleteEquipment(id);
+    setEquipment((prev) => prev.filter((item) => item.id !== id));
   };
 
   const navItems = [
@@ -96,9 +141,14 @@ export default function AdminEquipmentPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {equipment.map((item) => (
               <div key={item.id} className="aspect-square">
-                <Card className="h-full flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
+                <Card className="h-full flex flex-col overflow-hidden hover:shadow-lg transition-shadow py-0 gap-0">
                   <div className="relative h-1/2">
-                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      className={item.imageUrl.includes('bolaVolleyball.png') ? 'object-contain p-2' : 'object-cover'}
+                    />
                     <div className="absolute inset-0 bg-black/20" />
                     <div className="absolute bottom-3 left-3 rounded-full bg-black/40 px-3 py-1 text-xs text-white">
                       {item.category}
@@ -154,6 +204,11 @@ export default function AdminEquipmentPage() {
                 </Card>
               </div>
             ))}
+            {!loading && equipment.length === 0 && (
+              <div className="col-span-full text-center py-10 text-muted-foreground">
+                No hay equipos registrados.
+              </div>
+            )}
           </div>
         </div>
       </main>

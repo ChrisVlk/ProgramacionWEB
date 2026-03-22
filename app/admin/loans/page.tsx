@@ -1,69 +1,58 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
-import { MOCK_LOAN_REQUESTS } from '@/lib/mock-data';
+import { fetchAdminLoans, markLoanAsReturned } from '@/lib/api-client';
 import { LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   BarChart3, 
   Package,
   FileText,
   AlertTriangle,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 
 export default function AdminLoansPage() {
-  const [loans, setLoans] = useState<LoanRequest[]>(MOCK_LOAN_REQUESTS);
-  const [selectedLoan, setSelectedLoan] = useState<LoanRequest | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [actionDialogOpen, setActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [loans, setLoans] = useState<LoanRequest[]>([]);
+  const [workingLoanId, setWorkingLoanId] = useState<string | null>(null);
 
-  const handleApprove = (loan: LoanRequest) => {
-    setSelectedLoan(loan);
-    setActionType('approve');
-    setActionDialogOpen(true);
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const handleReject = (loan: LoanRequest) => {
-    setSelectedLoan(loan);
-    setActionType('reject');
-    setActionDialogOpen(true);
-  };
+    const loadLoans = async () => {
+      try {
+        const data = await fetchAdminLoans();
+        if (isMounted) {
+          setLoans(data);
+        }
+      } catch {
+        if (isMounted) {
+          setLoans([]);
+        }
+      }
+    };
 
-  const confirmAction = () => {
-    if (!selectedLoan) return;
+    loadLoans();
 
-    if (actionType === 'approve') {
-      setLoans(loans.map(loan =>
-        loan.id === selectedLoan.id ? { ...loan, status: 'approved' } : loan
-      ));
-    } else if (actionType === 'reject') {
-      setLoans(loans.map(loan =>
-        loan.id === selectedLoan.id
-          ? { ...loan, status: 'rejected', notes: rejectionReason }
-          : loan
-      ));
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleMarkReturned = async (loan: LoanRequest) => {
+    if (!loan.loanGroupId) return;
+    setWorkingLoanId(loan.loanGroupId);
+    try {
+      await markLoanAsReturned(loan.loanGroupId);
+      const updated = await fetchAdminLoans();
+      setLoans(updated);
+    } finally {
+      setWorkingLoanId(null);
     }
-
-    setActionDialogOpen(false);
-    setSelectedLoan(null);
-    setRejectionReason('');
-    setActionType(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -72,8 +61,6 @@ export default function AdminLoansPage() {
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
       case 'approved':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'returned':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       default:
@@ -88,8 +75,8 @@ export default function AdminLoansPage() {
     { label: 'Sanciones', href: '/admin/sanctions', icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const pendingLoans = loans.filter(l => l.status === 'pending');
-  const otherLoans = loans.filter(l => l.status !== 'pending');
+  const activeLoans = loans.filter(l => l.status === 'approved' || l.status === 'pending');
+  const returnedLoans = loans.filter(l => l.status === 'returned');
 
   return (
     <ProtectedLayout allowedRoles={['admin']}>
@@ -104,12 +91,12 @@ export default function AdminLoansPage() {
             </p>
           </div>
 
-          {/* Pending Requests Section */}
-          {pendingLoans.length > 0 && (
+          {/* Active Requests Section */}
+          {activeLoans.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-foreground mb-4">Solicitudes Pendientes ({pendingLoans.length})</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-4">Préstamos Activos ({activeLoans.length})</h3>
               <div className="grid gap-4">
-                {pendingLoans.map((loan) => (
+                {activeLoans.map((loan) => (
                   <Card key={loan.id} className="border-yellow-200 dark:border-yellow-800">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-4">
@@ -119,9 +106,7 @@ export default function AdminLoansPage() {
                             Solicitante: {loan.studentName} • ID: {loan.id}
                           </CardDescription>
                         </div>
-                        <Badge className={getStatusColor(loan.status)}>
-                          Pendiente
-                        </Badge>
+                        <Badge className={getStatusColor(loan.status)}>{loan.status === 'pending' ? 'Atrasado' : 'Activo'}</Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -143,33 +128,20 @@ export default function AdminLoansPage() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase">Días de Préstamo</p>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase">Estado backend</p>
                           <p className="text-sm text-foreground">
-                            {Math.ceil((new Date(loan.dueDate).getTime() - new Date(loan.requestDate).getTime()) / (1000 * 60 * 60 * 24))}
+                            {loan.backendStatus || 'ACTIVO'}
                           </p>
                         </div>
                       </div>
-                      {loan.notes && (
-                        <div className="mb-4 p-3 bg-muted rounded-lg">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notas</p>
-                          <p className="text-sm text-foreground">{loan.notes}</p>
-                        </div>
-                      )}
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => handleApprove(loan)}
+                          onClick={() => handleMarkReturned(loan)}
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
+                          disabled={!loan.loanGroupId || workingLoanId === loan.loanGroupId}
                         >
                           <CheckCircle className="w-4 h-4" />
-                          Aprobar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleReject(loan)}
-                          className="flex-1 gap-2 bg-white hover:bg-red-600 hover:text-white border-red-600 text-red-600"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Rechazar
+                          {workingLoanId === loan.loanGroupId ? 'Actualizando...' : 'Marcar Devuelto'}
                         </Button>
                       </div>
                     </CardContent>
@@ -179,12 +151,12 @@ export default function AdminLoansPage() {
             </div>
           )}
 
-          {/* Other Requests Section */}
-          {otherLoans.length > 0 && (
+          {/* Returned Requests Section */}
+          {returnedLoans.length > 0 && (
             <div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">Histórico ({otherLoans.length})</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-4">Histórico ({returnedLoans.length})</h3>
               <div className="grid gap-4">
-                {otherLoans.map((loan) => (
+                {returnedLoans.map((loan) => (
                   <Card key={loan.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-4">
@@ -195,8 +167,6 @@ export default function AdminLoansPage() {
                           </CardDescription>
                         </div>
                         <Badge className={getStatusColor(loan.status)}>
-                          {loan.status === 'approved' && 'Aprobado'}
-                          {loan.status === 'rejected' && 'Rechazado'}
                           {loan.status === 'returned' && 'Devuelto'}
                         </Badge>
                       </div>
@@ -221,7 +191,7 @@ export default function AdminLoansPage() {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Estado</p>
-                          <p className="text-sm text-foreground capitalize">{loan.status}</p>
+                          <p className="text-sm text-foreground">{loan.backendStatus || 'DEVUELTO'}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -240,58 +210,6 @@ export default function AdminLoansPage() {
           )}
         </div>
       </main>
-
-      {/* Action Dialog */}
-      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === 'approve' ? 'Aprobar Solicitud' : 'Rechazar Solicitud'}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedLoan?.equipmentName}
-            </DialogDescription>
-          </DialogHeader>
-
-          {actionType === 'reject' && (
-            <div className="space-y-2">
-              <label htmlFor="reason" className="text-sm font-semibold">Motivo del Rechazo</label>
-              <Textarea
-                id="reason"
-                placeholder="Explica por qué se rechaza esta solicitud..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                className="border-input resize-none"
-                rows={4}
-              />
-            </div>
-          )}
-
-          {actionType === 'approve' && (
-            <div className="py-4 text-center text-muted-foreground">
-              ¿Estás seguro de que deseas aprobar esta solicitud?
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setActionDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={confirmAction}
-              className={actionType === 'approve'
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-red-600 hover:bg-red-700 text-white'
-              }
-            >
-              {actionType === 'approve' ? 'Aprobar' : 'Rechazar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ProtectedLayout>
   );
 }

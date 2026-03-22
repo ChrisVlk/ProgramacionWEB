@@ -60,7 +60,7 @@ export function LoginForm() {
         router.push('/dashboard');
       }
     } catch (err) {
-      setError('Email o contraseña incorrectos. Credenciales de prueba: student@ulsa.edu.ni / password o admin@ulsa.edu.ni / password');
+      setError('Email o contraseña incorrectos en el backend.');
     }
   };
 
@@ -93,7 +93,7 @@ export function LoginForm() {
             router.push('/dashboard');
           }
         } catch (err) {
-          setError('No se pudo iniciar sesión con Google.');
+          setError('Google no está habilitado en backend todavía. Usa correo y contraseña.');
         }
       },
     });
@@ -190,18 +190,9 @@ export function LoginForm() {
               </form>
 
               <div className="mt-6 p-3 bg-muted rounded-lg">
-                <p className="text-xs font-semibold text-foreground mb-2">Credenciales de Demostración:</p>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>
-                    <span className="font-semibold">Estudiante:</span> student@ulsa.edu.ni
-                  </p>
-                  <p>
-                    <span className="font-semibold">Admin:</span> admin@ulsa.edu.ni
-                  </p>
-                  <p>
-                    <span className="font-semibold">Contraseña:</span> password
-                  </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Usa tus credenciales reales del backend para acceder.
+                </p>
               </div>
             </CardContent>
           </Card>

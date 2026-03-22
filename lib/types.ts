@@ -28,6 +28,7 @@ export interface Equipment {
 
 export interface LoanRequest {
   id: string;
+  loanGroupId?: string;
   studentId: string;
   studentName: string;
   equipmentId: string;
@@ -36,6 +37,7 @@ export interface LoanRequest {
   requestDate: Date;
   dueDate: Date;
   status: 'pending' | 'approved' | 'rejected' | 'returned';
+  backendStatus?: 'ACTIVO' | 'DEVUELTO' | 'ATRASADO';
   notes?: string;
 }
 
