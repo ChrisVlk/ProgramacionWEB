@@ -192,7 +192,7 @@ export default function AdminEquipmentPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDelete(item.id)}
-                          className="gap-1 text-destructive hover:text-destructive flex-1"
+                          className="gap-1 flex-1 bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
                         >
                           <Trash2 className="w-4 h-4" />
                           Eliminar

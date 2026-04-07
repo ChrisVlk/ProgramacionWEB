@@ -5,12 +5,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useCart } from '@/lib/cart-context';
 import { 
   LogOut, 
   Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  ShoppingCart
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
@@ -28,10 +30,12 @@ interface AppHeaderProps {
 
 export function AppHeader({ title, navItems }: AppHeaderProps) {
   const { logout, user } = useAuth();
+  const { cart } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const showCartShortcut = user?.role === 'student' && pathname.startsWith('/dashboard');
 
   const handleLogout = () => {
     logout();
@@ -41,7 +45,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-50 bg-gradient-to-r from-[#2d5a27] to-[#1e3a1a] text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-        <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between gap-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 h-24 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -58,7 +62,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
                 width={26}
                 height={26}
                 className="h-6 w-6 object-contain"
-                style={{ filter: 'invert(62%) sepia(49%) saturate(512%) hue-rotate(58deg) brightness(95%) contrast(90%)' }}
+                style={{ filter: 'brightness(0) invert(1)' }}
                 priority
               />
             </div>
@@ -70,6 +74,21 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
           </div>
 
           <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.14)] backdrop-blur-md">
+            {showCartShortcut && (
+              <Link
+                href="/dashboard?view=cart"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50"
+                aria-label="Abrir carrito"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {cart.length > 0 && (
+                  <span className="absolute right-0 top-0 flex h-5 min-w-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-white shadow-sm">
+                    {cart.length > 9 ? '9+' : cart.length}
+                  </span>
+                )}
+              </Link>
+            )}
+
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50"

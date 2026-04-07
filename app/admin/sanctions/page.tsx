@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
-import { MOCK_SANCTIONS } from '@/lib/mock-data';
 import { Sanction } from '@/lib/types';
+import { createSanction, deleteSanction, fetchSanctions, resolveSanction } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,24 +29,68 @@ import {
 } from 'lucide-react';
 
 export default function AdminSanctionsPage() {
-  const [sanctions, setSanctions] = useState<Sanction[]>(MOCK_SANCTIONS);
+  const [sanctions, setSanctions] = useState<Sanction[]>([]);
   const [newSanction, setNewSanction] = useState<Partial<Sanction>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleAddSanction = () => {
-    if (newSanction.studentId && newSanction.studentName && newSanction.reason && newSanction.severity) {
-      setSanctions([...sanctions, {
-        ...newSanction,
-        id: Date.now().toString(),
-        date: new Date(),
-      } as Sanction]);
+  const loadSanctions = async () => {
+    try {
+      const data = await fetchSanctions();
+      setSanctions(data);
+    } catch {
+      setSanctions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSanctions();
+  }, []);
+
+  const handleAddSanction = async () => {
+    if (submitting) return;
+    if (newSanction.studentId && newSanction.reason && newSanction.severity) {
+      setSubmitting(true);
+      try {
+        await createSanction({
+          studentId: newSanction.studentId,
+          reason: newSanction.reason,
+          severity: newSanction.severity,
+          expiryDate: newSanction.expiryDate,
+          notes: newSanction.notes,
+        });
+        await loadSanctions();
+      } finally {
+        setSubmitting(false);
+      }
       setNewSanction({});
       setDialogOpen(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setSanctions(sanctions.filter(s => s.id !== id));
+  const handleResolve = async (id: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await resolveSanction(id);
+      await loadSanctions();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await deleteSanction(id);
+      await loadSanctions();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getSeverityColor = (severity: string) => {
@@ -69,8 +113,13 @@ export default function AdminSanctionsPage() {
     { label: 'Sanciones', href: '/admin/sanctions', icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const activeSanctions = sanctions.filter(s => !s.expiryDate || new Date(s.expiryDate) > new Date());
-  const expiredSanctions = sanctions.filter(s => s.expiryDate && new Date(s.expiryDate) <= new Date());
+  const now = new Date();
+  const activeSanctions = sanctions.filter(
+    (s) => (s.isActive !== false) && (!s.expiryDate || new Date(s.expiryDate) > now),
+  );
+  const expiredSanctions = sanctions.filter(
+    (s) => (s.isActive === false) || (s.expiryDate ? new Date(s.expiryDate) <= now : false),
+  );
 
   return (
     <ProtectedLayout allowedRoles={['admin']}>
@@ -145,8 +194,18 @@ export default function AdminSanctionsPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => handleResolve(sanction.id)}
+                        disabled={submitting}
+                        className="w-full mt-4 gap-2 bg-transparent border-yellow-600 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600"
+                      >
+                        Levantar Sanción
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleDelete(sanction.id)}
-                        className="w-full mt-4 gap-2 bg-white hover:bg-red-600 hover:text-white border-red-600 text-red-600"
+                        disabled={submitting}
+                        className="w-full mt-4 gap-2 bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
                       >
                         <Trash2 className="w-4 h-4" />
                         Eliminar Sanción
@@ -193,7 +252,8 @@ export default function AdminSanctionsPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(sanction.id)}
-                        className="w-full gap-2 bg-white hover:bg-red-600 hover:text-white border-red-600 text-red-600"
+                        disabled={submitting}
+                        className="w-full gap-2 bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
                       >
                         <Trash2 className="w-4 h-4" />
                         Eliminar
@@ -205,7 +265,7 @@ export default function AdminSanctionsPage() {
             </div>
           )}
 
-          {sanctions.length === 0 && (
+          {!loading && sanctions.length === 0 && (
             <Card>
               <CardContent className="pt-8 pb-8 text-center">
                 <p className="text-muted-foreground">No hay sanciones registradas</p>
@@ -230,20 +290,9 @@ export default function AdminSanctionsPage() {
               <Label htmlFor="student-id">ID Estudiante</Label>
               <Input
                 id="student-id"
-                placeholder="e.g., STU001"
+                placeholder="Ej: 5"
                 value={newSanction.studentId || ''}
                 onChange={(e) => setNewSanction({ ...newSanction, studentId: e.target.value })}
-                className="border-input"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="student-name">Nombre del Estudiante</Label>
-              <Input
-                id="student-name"
-                placeholder="Nombre completo"
-                value={newSanction.studentName || ''}
-                onChange={(e) => setNewSanction({ ...newSanction, studentName: e.target.value })}
                 className="border-input"
               />
             </div>
@@ -287,6 +336,18 @@ export default function AdminSanctionsPage() {
                 className="border-input"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sanction-notes">Observaciones (Opcional)</Label>
+              <Textarea
+                id="sanction-notes"
+                placeholder="Detalles adicionales"
+                value={newSanction.notes || ''}
+                onChange={(e) => setNewSanction({ ...newSanction, notes: e.target.value })}
+                className="border-input resize-none"
+                rows={2}
+              />
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -295,9 +356,10 @@ export default function AdminSanctionsPage() {
             </Button>
             <Button
               onClick={handleAddSanction}
+              disabled={submitting}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              Crear Sanción
+              {submitting ? 'Guardando...' : 'Crear Sanción'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Estudiante, Equipo, Prestamo, DetallePrestamo
+from .models import Estudiante, Equipo, Prestamo, DetallePrestamo, Sancion
 
 # --- TRADUCTOR DE ESTUDIANTES ---
 class EstudianteSerializer(serializers.ModelSerializer):
@@ -46,3 +46,40 @@ class PrestamoSerializer(serializers.ModelSerializer):
             DetallePrestamo.objects.create(prestamo=prestamo, **detalle_data)
             
         return prestamo
+
+
+class SancionSerializer(serializers.ModelSerializer):
+    estudiante_detalle = EstudianteSerializer(source='estudiante', read_only=True)
+
+    class Meta:
+        model = Sancion
+        fields = [
+            'id',
+            'estudiante',
+            'estudiante_detalle',
+            'creada_por',
+            'resuelta_por',
+            'motivo',
+            'observaciones',
+            'severidad',
+            'fecha_inicio',
+            'fecha_fin',
+            'activa',
+            'fecha_resolucion',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['creada_por', 'resuelta_por', 'fecha_resolucion', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        fecha_inicio = attrs.get('fecha_inicio')
+        fecha_fin = attrs.get('fecha_fin')
+
+        if self.instance is not None:
+            fecha_inicio = fecha_inicio or self.instance.fecha_inicio
+            fecha_fin = fecha_fin if 'fecha_fin' in attrs else self.instance.fecha_fin
+
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            raise serializers.ValidationError('La fecha de fin no puede ser menor a la fecha de inicio.')
+
+        return attrs

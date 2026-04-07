@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.utils import timezone
 
 # --- MODELO ESTUDIANTE ---
 class Estudiante(AbstractUser):
@@ -19,6 +20,16 @@ class Estudiante(AbstractUser):
     carrera = models.CharField(max_length=5, choices=CARRERAS_ULSA, null=True, blank=True)
     ano_cursado = models.CharField(max_length=20, null=True, blank=True)
     sancionado = models.BooleanField(default=False)
+
+    def actualizar_estado_sancion(self):
+        hoy = timezone.localdate()
+        tiene_sancion_vigente = self.sanciones.filter(activa=True).filter(
+            models.Q(fecha_fin__isnull=True) | models.Q(fecha_fin__gte=hoy)
+        ).exists()
+
+        if self.sancionado != tiene_sancion_vigente:
+            self.sancionado = tiene_sancion_vigente
+            self.save(update_fields=['sancionado'])
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.username})"
@@ -37,15 +48,17 @@ class Equipo(models.Model):
 # --- MODELO PRESTAMO (EL TICKET GENERAL) ---
 class Prestamo(models.Model):
     ESTADOS_PRESTAMO = [
+        ('PENDIENTE', 'Pendiente'),
         ('ACTIVO', 'Activo'),
         ('DEVUELTO', 'Devuelto'),
+        ('RECHAZADO', 'Rechazado'),
         ('ATRASADO', 'Atrasado'),
     ]
     estudiante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prestamos_recibidos')
     entregado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='prestamos_entregados')
     fecha_prestamo = models.DateTimeField(auto_now_add=True)
     fecha_devolucion = models.DateTimeField(null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADOS_PRESTAMO, default='ACTIVO')
+    estado = models.CharField(max_length=20, choices=ESTADOS_PRESTAMO, default='PENDIENTE')
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.estudiante.username}"
@@ -53,6 +66,8 @@ class Prestamo(models.Model):
     def save(self, *args, **kwargs):
         # 1. Bloqueos de Seguridad
         if self.estado == 'ACTIVO':
+            self.estudiante.actualizar_estado_sancion()
+            self.estudiante.refresh_from_db(fields=['sancionado'])
             if self.estudiante.sancionado:
                 raise ValidationError(f"¡Bloqueado! {self.estudiante.username} está sancionado.")
             if not self.estudiante.carnet or not self.estudiante.carrera:
@@ -68,7 +83,7 @@ class Prestamo(models.Model):
         # 2. Devolución automática al inventario cuando todo el ticket cambia a DEVUELTO
         if self.pk:
             viejo_prestamo = Prestamo.objects.get(pk=self.pk)
-            if viejo_prestamo.estado == 'ACTIVO' and self.estado == 'DEVUELTO':
+            if viejo_prestamo.estado == 'ACTIVO' and self.estado != 'ACTIVO':
                 for detalle in self.detalles.all():
                     detalle.equipo.refresh_from_db()
                     detalle.equipo.cantidad_disponible = F('cantidad_disponible') + detalle.cantidad
@@ -121,3 +136,59 @@ class DetallePrestamo(models.Model):
             self.equipo.cantidad_disponible = F('cantidad_disponible') + self.cantidad
             self.equipo.save(update_fields=['cantidad_disponible'])
         super().delete(*args, **kwargs)
+
+
+class Sancion(models.Model):
+    SEVERIDAD_CHOICES = [
+        ('warning', 'Advertencia'),
+        ('restriction', 'Restricción'),
+        ('ban', 'Prohibición'),
+    ]
+
+    estudiante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sanciones')
+    creada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sanciones_creadas',
+    )
+    resuelta_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sanciones_resueltas',
+    )
+    motivo = models.TextField()
+    observaciones = models.TextField(null=True, blank=True)
+    severidad = models.CharField(max_length=20, choices=SEVERIDAD_CHOICES)
+    fecha_inicio = models.DateField(default=timezone.localdate)
+    fecha_fin = models.DateField(null=True, blank=True)
+    activa = models.BooleanField(default=True)
+    fecha_resolucion = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-fecha_inicio', '-id']
+
+    def __str__(self):
+        return f"Sanción #{self.id} - {self.estudiante.username}"
+
+    def clean(self):
+        if self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError('La fecha de fin no puede ser menor a la fecha de inicio.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if not self.activa and self.fecha_resolucion is None:
+            self.fecha_resolucion = timezone.now()
+
+        super().save(*args, **kwargs)
+        self.estudiante.actualizar_estado_sancion()
+
+    def delete(self, *args, **kwargs):
+        estudiante = self.estudiante
+        super().delete(*args, **kwargs)
+        estudiante.actualizar_estado_sancion()

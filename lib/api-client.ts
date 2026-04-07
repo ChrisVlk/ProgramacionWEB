@@ -1,4 +1,4 @@
-import { Equipment, LoanRequest, User } from '@/lib/types';
+import { Equipment, LoanRequest, Sanction, User } from '@/lib/types';
 
 export const AUTH_TOKEN_KEY = 'gear_auth_token';
 
@@ -38,13 +38,30 @@ interface BackendPrestamo {
   };
   fecha_prestamo: string;
   fecha_devolucion: string | null;
-  estado: 'ACTIVO' | 'DEVUELTO' | 'ATRASADO';
+  estado: 'PENDIENTE' | 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO';
   detalles: BackendDetallePrestamo[];
 }
 
 interface BackendLoginResponse {
   token: string;
   user: User;
+}
+
+interface BackendSancion {
+  id: number;
+  estudiante: number;
+  estudiante_detalle?: {
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+  };
+  motivo: string;
+  observaciones?: string | null;
+  severidad: 'warning' | 'restriction' | 'ban';
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  activa: boolean;
+  fecha_resolucion: string | null;
 }
 
 function toPublicPath(fileName: string): string {
@@ -212,6 +229,8 @@ function mapEquipment(item: BackendEquipo): Equipment {
 
 function mapLoanStatus(status: BackendPrestamo['estado']): LoanRequest['status'] {
   if (status === 'DEVUELTO') return 'returned';
+  if (status === 'RECHAZADO') return 'rejected';
+  if (status === 'PENDIENTE') return 'pending';
   if (status === 'ATRASADO') return 'pending';
   return 'approved';
 }
@@ -236,6 +255,25 @@ function mapLoans(prestamos: BackendPrestamo[]): LoanRequest[] {
       backendStatus: prestamo.estado,
     }));
   });
+}
+
+function mapSanction(sancion: BackendSancion): Sanction {
+  const studentName = `${sancion.estudiante_detalle?.first_name || ''} ${sancion.estudiante_detalle?.last_name || ''}`.trim()
+    || sancion.estudiante_detalle?.username
+    || `Estudiante #${sancion.estudiante}`;
+
+  return {
+    id: String(sancion.id),
+    studentId: String(sancion.estudiante),
+    studentName,
+    reason: sancion.motivo,
+    date: new Date(sancion.fecha_inicio),
+    severity: sancion.severidad,
+    expiryDate: sancion.fecha_fin ? new Date(sancion.fecha_fin) : undefined,
+    notes: sancion.observaciones || undefined,
+    isActive: sancion.activa,
+    resolvedAt: sancion.fecha_resolucion ? new Date(sancion.fecha_resolucion) : undefined,
+  };
 }
 
 export async function loginWithApi(email: string, password: string): Promise<BackendLoginResponse> {
@@ -304,14 +342,27 @@ export async function fetchAdminLoans(): Promise<LoanRequest[]> {
 
 export async function createLoan(payload: {
   estudiante: number;
-  estado?: 'ACTIVO';
+  estado?: 'PENDIENTE' | 'ACTIVO';
+  fecha_devolucion?: string;
   detalles: Array<{ equipo: number; cantidad: number }>;
 }): Promise<void> {
   await apiRequest('/prestamos/', {
     method: 'POST',
     body: {
       ...payload,
-      estado: payload.estado || 'ACTIVO',
+      estado: payload.estado || 'PENDIENTE',
+    },
+  });
+}
+
+export async function updateLoanStatus(
+  loanGroupId: string,
+  status: 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO' | 'PENDIENTE',
+): Promise<void> {
+  await apiRequest(`/prestamos/${loanGroupId}/`, {
+    method: 'PATCH',
+    body: {
+      estado: status,
     },
   });
 }
@@ -322,6 +373,49 @@ export async function markLoanAsReturned(loanGroupId: string): Promise<void> {
     body: {
       estado: 'DEVUELTO',
     },
+  });
+}
+
+export async function fetchSanctions(): Promise<Sanction[]> {
+  const data = await apiRequest<BackendSancion[]>('/sanciones/');
+  return data.map(mapSanction);
+}
+
+export async function createSanction(payload: {
+  studentId: string;
+  reason: string;
+  severity: 'warning' | 'restriction' | 'ban';
+  expiryDate?: Date;
+  notes?: string;
+}): Promise<Sanction> {
+  const data = await apiRequest<BackendSancion>('/sanciones/', {
+    method: 'POST',
+    body: {
+      estudiante: Number(payload.studentId),
+      motivo: payload.reason,
+      severidad: payload.severity,
+      fecha_fin: payload.expiryDate ? payload.expiryDate.toISOString().slice(0, 10) : null,
+      observaciones: payload.notes || null,
+    },
+  });
+
+  return mapSanction(data);
+}
+
+export async function resolveSanction(sanctionId: string, notes?: string): Promise<Sanction> {
+  const data = await apiRequest<BackendSancion>(`/sanciones/${sanctionId}/resolver/`, {
+    method: 'PATCH',
+    body: {
+      observaciones: notes || null,
+    },
+  });
+
+  return mapSanction(data);
+}
+
+export async function deleteSanction(sanctionId: string): Promise<void> {
+  await apiRequest(`/sanciones/${sanctionId}/`, {
+    method: 'DELETE',
   });
 }
 

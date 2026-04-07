@@ -39,8 +39,16 @@ export const Cart: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Tomar la fecha más lejana de devolución entre todos los items del carrito
+      const latestDueDate = cart
+        .map((item) => item.dueDate)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+
       await createLoan({
         estudiante: Number(user.id),
+        fecha_devolucion: latestDueDate,
         detalles: cart.map((item) => ({
           equipo: Number(item.equipment.id),
           cantidad: item.quantity,

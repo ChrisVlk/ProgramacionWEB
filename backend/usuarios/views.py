@@ -4,14 +4,15 @@ from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework import permissions
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from .models import Estudiante, Equipo, Prestamo
-from .serializers import EstudianteSerializer, EquipoSerializer, PrestamoSerializer
+from django.utils import timezone
+from .models import Estudiante, Equipo, Prestamo, Sancion
+from .serializers import EstudianteSerializer, EquipoSerializer, PrestamoSerializer, SancionSerializer
 
 User = get_user_model()
 
@@ -101,7 +102,50 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if not estudiante or estudiante.id != self.request.user.id:
             raise PermissionDenied('Solo puedes crear préstamos para tu propio usuario.')
 
+        serializer.save(estado='PENDIENTE')
+
+
+class SancionViewSet(viewsets.ModelViewSet):
+    queryset = Sancion.objects.all().select_related('estudiante', 'creada_por', 'resuelta_por')
+    serializer_class = SancionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Sancion.objects.all().select_related('estudiante', 'creada_por', 'resuelta_por')
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(estudiante=self.request.user)
+
+    def _ensure_admin(self):
+        if not self.request.user.is_staff:
+            raise PermissionDenied('Solo administradores pueden gestionar sanciones.')
+
+    def perform_create(self, serializer):
+        self._ensure_admin()
+        serializer.save(creada_por=self.request.user)
+
+    def perform_update(self, serializer):
+        self._ensure_admin()
         serializer.save()
+
+    def perform_destroy(self, instance):
+        self._ensure_admin()
+        instance.delete()
+
+    @action(detail=True, methods=['patch'])
+    def resolver(self, request, pk=None):
+        self._ensure_admin()
+        sancion = self.get_object()
+        sancion.activa = False
+        sancion.resuelta_por = request.user
+        sancion.fecha_resolucion = timezone.now()
+
+        observaciones = request.data.get('observaciones')
+        if observaciones is not None:
+            sancion.observaciones = observaciones
+
+        sancion.save()
+        return Response(self.get_serializer(sancion).data)
 
 
 # ==========================================

@@ -37,7 +37,7 @@ export interface LoanRequest {
   requestDate: Date;
   dueDate: Date;
   status: 'pending' | 'approved' | 'rejected' | 'returned';
-  backendStatus?: 'ACTIVO' | 'DEVUELTO' | 'ATRASADO';
+  backendStatus?: 'PENDIENTE' | 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO';
   notes?: string;
 }
 
@@ -49,4 +49,7 @@ export interface Sanction {
   date: Date;
   severity: 'warning' | 'restriction' | 'ban';
   expiryDate?: Date;
+  notes?: string;
+  isActive?: boolean;
+  resolvedAt?: Date;
 }
