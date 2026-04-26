@@ -22,6 +22,32 @@ from django.conf import settings
 User = get_user_model()
 
 
+# ── Lista blanca de cuentas administradoras ────────────────────────────────
+def _get_admin_emails() -> set[str]:
+    """
+    Lee ADMIN_EMAILS del entorno y retorna un set de correos en minúsculas.
+    Siempre incluye al superusuario 'admin' como salvaguarda.
+    """
+    raw = os.getenv('ADMIN_EMAILS', '')
+    emails = {e.strip().lower() for e in raw.split(',') if e.strip()}
+    return emails
+
+
+def _sync_admin_flag(user) -> None:
+    """
+    - Si el correo del usuario está en la lista blanca → is_staff = True
+    - Si NO está → is_staff = False (a menos que sea superusuario)
+    Solo guarda si hubo cambio.
+    """
+    if user.is_superuser:
+        return                          # nunca tocar al superusuario
+    allowed = _get_admin_emails()
+    should_be_staff = user.email.lower() in allowed
+    if user.is_staff != should_be_staff:
+        user.is_staff = should_be_staff
+        user.save(update_fields=['is_staff'])
+
+
 class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
@@ -48,6 +74,9 @@ class LoginAPIView(APIView):
         user = authenticate(request, username=username, password=password)
         if not user:
             return Response({'detail': 'Credenciales inválidas.'}, status=401)
+
+        # Sincronizar flag de admin con la lista blanca
+        _sync_admin_flag(user)
 
         token, _ = Token.objects.get_or_create(user=user)
         return Response({
@@ -308,14 +337,18 @@ class GoogleLoginView(APIView):
                 'last_name': last_name
             })
 
+            # Sincronizar flag de admin con la lista blanca
+            _sync_admin_flag(user)
+
             # Generar token DRF
             token, _ = Token.objects.get_or_create(user=user)
 
             # Verificar si necesita completar perfil (solo estudiantes)
             requiere_perfil = False
-            if email.endswith('@est.ulsa.edu.ni'):
-                if not user.carnet or not user.carrera:
-                    requiere_perfil = True
+            if not user.is_staff and not user.is_superuser:
+                if email.endswith('@est.ulsa.edu.ni'):
+                    if not user.carnet or not user.carrera:
+                        requiere_perfil = True
 
             return Response({
                 'token': token.key,
