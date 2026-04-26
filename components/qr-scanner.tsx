@@ -8,7 +8,11 @@ import { Camera, CameraOff, CheckCircle2, XCircle, ToggleLeft, ToggleRight, Load
 type ScanMode = 'approve' | 'return';
 type ScanResult = { status: 'success' | 'error'; message: string } | null;
 
-export function QrScanner() {
+interface QrScannerProps {
+  onReturnScanned?: (loanId: string) => void;
+}
+
+export function QrScanner({ onReturnScanned }: QrScannerProps = {}) {
   const [active, setActive]     = useState(false);
   const [mode, setMode]         = useState<ScanMode>('approve');
   const [result, setResult]     = useState<ScanResult>(null);
@@ -60,8 +64,13 @@ export function QrScanner() {
               await updateLoanStatus(loanId, 'ACTIVO');
               setResult({ status: 'success', message: `✅ Préstamo #${loanId} aprobado. Equipo entregado.` });
             } else {
-              await markLoanAsReturned(loanId);
-              setResult({ status: 'success', message: `✅ Préstamo #${loanId} marcado como devuelto.` });
+              if (onReturnScanned) {
+                onReturnScanned(loanId);
+                setResult({ status: 'success', message: `✅ Código QR capturado para devolución.` });
+              } else {
+                await markLoanAsReturned(loanId);
+                setResult({ status: 'success', message: `✅ Préstamo #${loanId} marcado como devuelto.` });
+              }
             }
             // Bip de confirmación
             try {

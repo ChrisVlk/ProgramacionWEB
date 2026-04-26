@@ -442,6 +442,17 @@ export async function fetchSanctions(): Promise<Sanction[]> {
   return data.map(mapSanction);
 }
 
+export async function fetchStudents(query: string = ''): Promise<User[]> {
+  const url = query ? `/estudiantes/?search=${encodeURIComponent(query)}` : '/estudiantes/';
+  const data = await apiRequest<any[]>(url);
+  return data.map(u => ({
+    id: String(u.id),
+    email: u.email,
+    name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
+    role: u.is_staff ? 'admin' : 'student',
+  }));
+}
+
 export async function createSanction(payload: {
   studentId: string;
   reason: string;

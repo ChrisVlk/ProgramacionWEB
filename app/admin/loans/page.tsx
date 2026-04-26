@@ -3,12 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
-import { fetchAdminLoans, markLoanAsReturned, updateLoanStatus } from '@/lib/api-client';
+import { fetchAdminLoans, markLoanAsReturned, updateLoanStatus, createSanction } from '@/lib/api-client';
 import { LoanRequest } from '@/lib/types';
 import { useNotifications } from '@/lib/notifications-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { QrScanner } from '@/components/qr-scanner';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -67,6 +70,12 @@ export default function AdminLoansPage() {
   const [rejectReason, setRejectReason]     = useState('');
   const [rejecting, setRejecting]           = useState(false);
 
+  // Estados para la devolución con sanción
+  const [returnTarget, setReturnTarget] = useState<{ groupId: string, studentId?: string } | null>(null);
+  const [applySanction, setApplySanction] = useState(false);
+  const [sanctionReason, setSanctionReason] = useState('');
+  const [sanctionSeverity, setSanctionSeverity] = useState<'warning' | 'restriction' | 'ban'>('warning');
+
   const { addNotification } = useNotifications();
 
   const reload = async () => {
@@ -103,13 +112,36 @@ export default function AdminLoansPage() {
     }
   };
 
-  const handleMarkReturned = async (group: LoanGroup) => {
-    setWorkingGroupId(group.groupId);
+  const initiateReturn = (groupId: string, studentId?: string) => {
+    setReturnTarget({ groupId, studentId });
+    setApplySanction(false);
+    setSanctionReason('');
+    setSanctionSeverity('warning');
+    setScannerOpen(false); // Por si viene del escáner
+  };
+
+  const confirmReturn = async () => {
+    if (!returnTarget) return;
+    setWorkingGroupId(returnTarget.groupId);
     try {
-      await markLoanAsReturned(group.groupId);
+      await markLoanAsReturned(returnTarget.groupId);
+      
+      if (applySanction && sanctionReason && returnTarget.studentId) {
+        await createSanction({
+          studentId: returnTarget.studentId,
+          reason: sanctionReason,
+          severity: sanctionSeverity,
+        });
+        addNotification('Devolución y Sanción', 'Equipo recibido y estudiante sancionado.', 'warning');
+      } else {
+        addNotification('Devolución registrada', 'El equipo fue recibido de vuelta.', 'success');
+      }
+      
       await reload();
-      addNotification('Devolución registrada', 'El equipo fue recibido de vuelta.', 'success');
-    } finally { setWorkingGroupId(null); }
+      setReturnTarget(null);
+    } finally { 
+      setWorkingGroupId(null); 
+    }
   };
 
   const statusColor = (status: LoanRequest['status']) => {
@@ -226,7 +258,7 @@ export default function AdminLoansPage() {
                 </>
               ) : (
                 <Button
-                  onClick={() => handleMarkReturned(group)}
+                  onClick={() => initiateReturn(group.groupId, group.studentId)}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
                   disabled={working}
                 >
@@ -303,7 +335,13 @@ export default function AdminLoansPage() {
               Apunta la cámara al código QR del estudiante para aprobar o registrar una devolución.
             </DialogDescription>
           </DialogHeader>
-          <QrScanner />
+          <QrScanner 
+            onReturnScanned={(loanId) => {
+              // Buscar el studentId del préstamo escaneado para la posible sanción
+              const loan = allGroups.find(g => g.groupId === loanId);
+              initiateReturn(loanId, loan?.studentId);
+            }}
+          />
         </DialogContent>
       </Dialog>
 
@@ -336,6 +374,76 @@ export default function AdminLoansPage() {
               disabled={rejecting}
             >
               {rejecting ? 'Rechazando...' : 'Confirmar Rechazo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL: Confirmar Devolución (con opción a sanción) ── */}
+      <Dialog open={!!returnTarget} onOpenChange={(open) => { if (!open) setReturnTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <CheckCircle className="w-5 h-5" /> Confirmar Devolución
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de marcar el ticket #{returnTarget?.groupId} como devuelto?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4 border-t border-border mt-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="apply-sanction" className="text-base font-semibold">Aplicar Sanción</Label>
+                <p className="text-xs text-muted-foreground">Si el equipo fue dañado o devuelto tarde</p>
+              </div>
+              <Switch
+                id="apply-sanction"
+                checked={applySanction}
+                onCheckedChange={setApplySanction}
+              />
+            </div>
+
+            {applySanction && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="space-y-2">
+                  <Label htmlFor="sanction-reason">Motivo de la Sanción</Label>
+                  <Textarea
+                    id="sanction-reason"
+                    placeholder="Ej: Balón ponchado, entrega 2 días tarde..."
+                    value={sanctionReason}
+                    onChange={(e) => setSanctionReason(e.target.value)}
+                    className="border-input resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sanction-severity">Severidad</Label>
+                  <select
+                    id="sanction-severity"
+                    value={sanctionSeverity}
+                    onChange={(e) => setSanctionSeverity(e.target.value as 'warning' | 'restriction' | 'ban')}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                  >
+                    <option value="warning">Advertencia</option>
+                    <option value="restriction">Restricción Temporal</option>
+                    <option value="ban">Prohibición Permanente</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReturnTarget(null)} disabled={workingGroupId === returnTarget?.groupId}>
+              Cancelar
+            </Button>
+            <Button
+              className={applySanction ? "bg-red-600 hover:bg-red-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
+              onClick={confirmReturn}
+              disabled={workingGroupId === returnTarget?.groupId || (applySanction && !sanctionReason.trim())}
+            >
+              {workingGroupId === returnTarget?.groupId ? 'Procesando...' : (applySanction ? 'Devolver y Sancionar' : 'Confirmar Devolución')}
             </Button>
           </DialogFooter>
         </DialogContent>

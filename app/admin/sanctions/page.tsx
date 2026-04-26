@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { Sanction } from '@/lib/types';
-import { createSanction, deleteSanction, fetchSanctions, resolveSanction } from '@/lib/api-client';
+import { createSanction, deleteSanction, fetchSanctions, resolveSanction, fetchStudents } from '@/lib/api-client';
+import { User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,29 @@ export default function AdminSanctionsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      if (searchTerm.length >= 2) {
+        setSearching(true);
+        try {
+          const results = await fetchStudents(searchTerm);
+          setSearchResults(results);
+        } catch {
+          setSearchResults([]);
+        } finally {
+          setSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
 
   const loadSanctions = async () => {
     try {
@@ -67,6 +91,8 @@ export default function AdminSanctionsPage() {
         setSubmitting(false);
       }
       setNewSanction({});
+      setSelectedStudent(null);
+      setSearchTerm('');
       setDialogOpen(false);
     }
   };
@@ -137,6 +163,8 @@ export default function AdminSanctionsPage() {
             <Button
               onClick={() => {
                 setNewSanction({});
+                setSelectedStudent(null);
+                setSearchTerm('');
                 setDialogOpen(true);
               }}
               className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
@@ -286,15 +314,58 @@ export default function AdminSanctionsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="student-id">ID Estudiante</Label>
-              <Input
-                id="student-id"
-                placeholder="Ej: 5"
-                value={newSanction.studentId || ''}
-                onChange={(e) => setNewSanction({ ...newSanction, studentId: e.target.value })}
-                className="border-input"
-              />
+            <div className="space-y-2 relative">
+              <Label htmlFor="student-search">Estudiante</Label>
+              {selectedStudent ? (
+                <div className="flex items-center justify-between p-2 border rounded-md bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                  <div>
+                    <p className="text-sm font-medium">{selectedStudent.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedStudent.email}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/50"
+                    onClick={() => {
+                      setSelectedStudent(null);
+                      setNewSanction({ ...newSanction, studentId: undefined });
+                    }}
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    id="student-search"
+                    placeholder="Buscar por nombre, carnet o correo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="border-input"
+                    autoComplete="off"
+                  />
+                  {searching && <p className="text-xs text-muted-foreground mt-1">Buscando...</p>}
+                  {searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {searchResults.map(user => (
+                        <div
+                          key={user.id}
+                          className="p-2 cursor-pointer hover:bg-muted border-b last:border-0"
+                          onClick={() => {
+                            setSelectedStudent(user);
+                            setNewSanction({ ...newSanction, studentId: user.id });
+                            setSearchTerm('');
+                            setSearchResults([]);
+                          }}
+                        >
+                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="space-y-2">

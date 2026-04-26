@@ -59,6 +59,14 @@ export default function AdminDashboard() {
               console.error('Audio play failed', e);
             }
             
+            // Notificación nativa del sistema operativo (WhatsApp style)
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              new Notification('¡Nueva Solicitud en MOSQ!', {
+                body: 'Un estudiante acaba de solicitar un préstamo.',
+                icon: '/icon.png',
+              });
+            }
+
             addNotification({
               title: '¡Nueva Solicitud!',
               message: 'Un estudiante acaba de solicitar un préstamo.',
@@ -78,6 +86,13 @@ export default function AdminDashboard() {
     };
 
     loadData();
+
+    // Solicitar permisos para notificaciones nativas de escritorio al cargar el dashboard
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
 
     // Sincronización en vivo cada 10 segundos
     syncInterval = setInterval(() => {

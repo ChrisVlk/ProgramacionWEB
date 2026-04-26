@@ -106,10 +106,14 @@ class CurrentUserAPIView(APIView):
 # 1. VISTAS AUTOMÁTICAS DE LA API (CRUD)
 # ==========================================
 
+from rest_framework import filters
+
 class EstudianteViewSet(viewsets.ModelViewSet):
     queryset = Estudiante.objects.all()
     serializer_class = EstudianteSerializer
     permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['first_name', 'last_name', 'username', 'email', 'carnet']
 
 class EquipoViewSet(viewsets.ModelViewSet):
     queryset = Equipo.objects.all()
