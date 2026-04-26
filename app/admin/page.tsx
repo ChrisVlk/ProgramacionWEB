@@ -14,12 +14,13 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { DashboardCharts } from '@/components/dashboard-charts';
-import { toast } from 'sonner';
+import { useNotifications } from '@/lib/notifications-context';
 
 export default function AdminDashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loans, setLoans] = useState<LoanRequest[]>([]);
   const [lastPendingCount, setLastPendingCount] = useState<number>(0);
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     let isMounted = true;
@@ -58,8 +59,10 @@ export default function AdminDashboard() {
               console.error('Audio play failed', e);
             }
             
-            toast.success('¡Nueva Solicitud!', {
-              description: 'Un estudiante acaba de solicitar un préstamo.',
+            addNotification({
+              title: '¡Nueva Solicitud!',
+              message: 'Un estudiante acaba de solicitar un préstamo.',
+              type: 'info'
             });
           }
           return currentPending;
