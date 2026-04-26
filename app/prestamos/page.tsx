@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
@@ -13,7 +13,7 @@ import { fetchEquipment } from '@/lib/api-client';
 import { Equipment } from '@/lib/types';
 import { Home, FileText, ShoppingCart } from 'lucide-react';
 
-export default function PrestamosPage() {
+function PrestamosPageContent() {
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'catalog' | 'cart'>('catalog');
@@ -127,3 +127,16 @@ export default function PrestamosPage() {
     </ProtectedLayout>
   );
 }
+
+export default function PrestamosPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <PrestamosPageContent />
+    </Suspense>
+  );
+}
+
