@@ -22,6 +22,10 @@ def _get_client_ip(request):
 
 
 def _is_allowed(ip: str, allowed: list[str], debug: bool) -> bool:
+    # Si la lista contiene '*', permitir todo (ideal para pruebas o demostraciones)
+    if '*' in allowed:
+        return True
+        
     # En modo DEBUG, siempre permitir localhost
     if debug and ip in ('127.0.0.1', '::1', 'localhost'):
         return True
