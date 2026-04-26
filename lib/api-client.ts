@@ -17,6 +17,7 @@ interface BackendEquipo {
   id: number;
   nombre: string;
   descripcion: string | null;
+  imagen_url: string | null;
   cantidad_total: number;
   cantidad_disponible: number;
 }
@@ -187,7 +188,9 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions = {
     Accept: 'application/json',
   };
 
-  if (body !== undefined) {
+  // Si el body es FormData, no seteamos Content-Type (el browser lo pone automático con boundary)
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && !isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -198,7 +201,7 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions = {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body as BodyInit : JSON.stringify(body)) : undefined,
   });
 
   if (!response.ok) {
@@ -237,7 +240,7 @@ function mapEquipment(item: BackendEquipo): Equipment {
     description: item.descripcion || 'Sin descripción',
     available: item.cantidad_disponible,
     total: item.cantidad_total,
-    imageUrl: resolveEquipmentImage(item.nombre),
+    imageUrl: item.imagen_url || resolveEquipmentImage(item.nombre),
     condition: 'good',
   };
 }
@@ -332,10 +335,18 @@ export async function createEquipment(payload: {
   descripcion?: string;
   cantidad_total: number;
   cantidad_disponible: number;
+  imagen?: File | null;
 }): Promise<Equipment> {
+  const formData = new FormData();
+  formData.append('nombre', payload.nombre);
+  if (payload.descripcion) formData.append('descripcion', payload.descripcion);
+  formData.append('cantidad_total', String(payload.cantidad_total));
+  formData.append('cantidad_disponible', String(payload.cantidad_disponible));
+  if (payload.imagen) formData.append('imagen', payload.imagen);
+
   const data = await apiRequest<BackendEquipo>('/equipos/', {
     method: 'POST',
-    body: payload,
+    body: formData,
   });
 
   return mapEquipment(data);
@@ -348,11 +359,19 @@ export async function updateEquipment(
     descripcion?: string;
     cantidad_total: number;
     cantidad_disponible: number;
+    imagen?: File | null;
   },
 ): Promise<Equipment> {
+  const formData = new FormData();
+  formData.append('nombre', payload.nombre);
+  if (payload.descripcion) formData.append('descripcion', payload.descripcion);
+  formData.append('cantidad_total', String(payload.cantidad_total));
+  formData.append('cantidad_disponible', String(payload.cantidad_disponible));
+  if (payload.imagen) formData.append('imagen', payload.imagen);
+
   const data = await apiRequest<BackendEquipo>(`/equipos/${equipmentId}/`, {
     method: 'PUT',
-    body: payload,
+    body: formData,
   });
 
   return mapEquipment(data);

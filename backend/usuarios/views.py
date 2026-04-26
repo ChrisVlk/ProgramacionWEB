@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework import permissions
+from rest_framework import parsers
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -81,6 +82,7 @@ class EquipoViewSet(viewsets.ModelViewSet):
     queryset = Equipo.objects.all()
     serializer_class = EquipoSerializer
     permission_classes = [IsAdminOrReadOnly]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
 class PrestamoViewSet(viewsets.ModelViewSet):
     queryset = Prestamo.objects.all()

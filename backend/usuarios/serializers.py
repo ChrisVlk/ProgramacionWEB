@@ -15,9 +15,19 @@ class EstudianteSerializer(serializers.ModelSerializer):
 
 # --- TRADUCTOR DE EQUIPOS ---
 class EquipoSerializer(serializers.ModelSerializer):
+    imagen_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Equipo
-        fields = '__all__'
+        fields = ['id', 'nombre', 'descripcion', 'imagen', 'imagen_url', 'cantidad_total', 'cantidad_disponible']
+
+    def get_imagen_url(self, obj):
+        if obj.imagen:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.imagen.url)
+            return obj.imagen.url
+        return None
 
 # --- TRADUCTOR DE LOS DETALLES DEL CARRITO ---
 class DetallePrestamoSerializer(serializers.ModelSerializer):

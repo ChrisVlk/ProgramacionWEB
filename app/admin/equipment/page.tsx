@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { createEquipment, deleteEquipment, fetchEquipment, updateEquipment } from '@/lib/api-client';
@@ -26,7 +26,9 @@ import {
   AlertTriangle,
   Plus,
   Edit2,
-  Trash2
+  Trash2,
+  Upload,
+  X
 } from 'lucide-react';
 
 export default function AdminEquipmentPage() {
@@ -35,6 +37,11 @@ export default function AdminEquipmentPage() {
   const [formData, setFormData] = useState<Partial<Equipment>>({});
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Estado para la imagen
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,6 +73,26 @@ export default function AdminEquipmentPage() {
   const handleEdit = (item: Equipment) => {
     setEditingId(item.id);
     setFormData(item);
+    setSelectedImageFile(null);
+    // Mostrar la imagen existente del equipo como preview
+    setImagePreviewUrl(item.imageUrl && !item.imageUrl.includes('placeholder') ? item.imageUrl : null);
+  };
+
+  const handleImageChange = (file: File | null) => {
+    if (file) {
+      setSelectedImageFile(file);
+      // Crear preview local
+      const url = URL.createObjectURL(file);
+      setImagePreviewUrl(url);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSave = async () => {
@@ -84,6 +111,7 @@ export default function AdminEquipmentPage() {
         descripcion,
         cantidad_total: cantidadTotal,
         cantidad_disponible: cantidadDisponible,
+        imagen: selectedImageFile,
       });
       setEquipment((prev) => prev.map((item) => (item.id === editingId ? updated : item)));
     } else {
@@ -92,17 +120,28 @@ export default function AdminEquipmentPage() {
         descripcion,
         cantidad_total: cantidadTotal,
         cantidad_disponible: cantidadDisponible,
+        imagen: selectedImageFile,
       });
       setEquipment((prev) => [...prev, created]);
     }
     setEditingId(null);
     setFormData({});
     setIsAddingNew(false);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
   };
 
   const handleDelete = async (id: string) => {
     await deleteEquipment(id);
     setEquipment((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleDialogClose = () => {
+    setEditingId(null);
+    setFormData({});
+    setIsAddingNew(false);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
   };
 
   const navItems = [
@@ -130,6 +169,8 @@ export default function AdminEquipmentPage() {
                 setIsAddingNew(true);
                 setEditingId('new');
                 setFormData({});
+                setSelectedImageFile(null);
+                setImagePreviewUrl(null);
               }}
               className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
             >
@@ -215,9 +256,7 @@ export default function AdminEquipmentPage() {
       {/* Edit/Add Dialog */}
       <Dialog open={editingId !== null} onOpenChange={(open) => {
         if (!open) {
-          setEditingId(null);
-          setFormData({});
-          setIsAddingNew(false);
+          handleDialogClose();
         }
       }}>
         <DialogContent className="sm:max-w-md">
@@ -226,11 +265,68 @@ export default function AdminEquipmentPage() {
               {isAddingNew || editingId === 'new' ? 'Nuevo Equipo' : 'Editar Equipo'}
             </DialogTitle>
             <DialogDescription>
-              Actualiza los detalles del equipo
+              {isAddingNew || editingId === 'new'
+                ? 'Agrega un nuevo equipo al inventario'
+                : 'Actualiza los detalles del equipo'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Campo: Imagen */}
+            <div className="space-y-2">
+              <Label>Imagen del equipo</Label>
+              {imagePreviewUrl ? (
+                <div className="relative w-full h-40 rounded-lg border border-input overflow-hidden bg-[#e9edf0]">
+                  <Image
+                    src={imagePreviewUrl}
+                    alt="Vista previa"
+                    fill
+                    className="object-contain p-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                    aria-label="Quitar imagen"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      handleImageChange(file);
+                    }
+                  }}
+                  className="w-full h-40 rounded-lg border-2 border-dashed border-input hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Upload className="w-8 h-8" />
+                  <span className="text-sm font-medium">Haz clic o arrastra una imagen</span>
+                  <span className="text-xs">PNG, JPG, WEBP (máx. 5MB)</span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  handleImageChange(file);
+                }}
+              />
+            </div>
+
+            {/* Campo: Nombre */}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input
@@ -241,6 +337,7 @@ export default function AdminEquipmentPage() {
               />
             </div>
 
+            {/* Campos: Disponibles / Total */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="available">Disponibles</Label>
@@ -264,6 +361,7 @@ export default function AdminEquipmentPage() {
               </div>
             </div>
 
+            {/* Campo: Categoría */}
             <div className="space-y-2">
               <Label htmlFor="category">Categoría</Label>
               <Input
@@ -276,7 +374,7 @@ export default function AdminEquipmentPage() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingId(null)}>
+            <Button variant="outline" onClick={handleDialogClose}>
               Cancelar
             </Button>
             <Button
@@ -291,3 +389,4 @@ export default function AdminEquipmentPage() {
     </ProtectedLayout>
   );
 }
+

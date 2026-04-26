@@ -38,7 +38,7 @@ class Estudiante(AbstractUser):
 class Equipo(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
-    # Aquí puedes agregar la imagen después si lo deciden: imagen = models.URLField(blank=True, null=True)
+    imagen = models.ImageField(upload_to='equipos/', blank=True, null=True)
     cantidad_total = models.PositiveIntegerField(default=1)
     cantidad_disponible = models.PositiveIntegerField(default=1)
 
