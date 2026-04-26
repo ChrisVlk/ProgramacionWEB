@@ -12,6 +12,8 @@ router.register(r'sanciones', views.SancionViewSet)
 # 2. Las URLs finales que exponemos al mundo
 urlpatterns = [
     path('auth/login/', views.LoginAPIView.as_view(), name='auth_login'),
+    path('auth/google/', views.GoogleLoginView.as_view(), name='auth_google'),
+    path('auth/completar-perfil/', views.CompletarPerfilView.as_view(), name='auth_completar_perfil'),
     path('auth/me/', views.CurrentUserAPIView.as_view(), name='auth_me'),
 
     # Incluimos todas las rutas automáticas (ej. /api/equipos/)

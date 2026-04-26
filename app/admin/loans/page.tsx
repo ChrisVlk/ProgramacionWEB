@@ -9,16 +9,16 @@ import { useNotifications } from '@/lib/notifications-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { QrScanner } from '@/components/qr-scanner';
 import {
-  BarChart3,
-  Package,
-  FileText,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+} from '@/components/ui/dialog';
+import {
+  BarChart3, Package, FileText, AlertTriangle,
+  CheckCircle, XCircle, QrCode,
 } from 'lucide-react';
+import { useAutoRefresh } from '@/lib/use-auto-refresh';
 
-// Grupo de préstamos que comparten el mismo loanGroupId (mismo ticket del backend)
 interface LoanGroup {
   groupId: string;
   studentName: string;
@@ -31,7 +31,7 @@ interface LoanGroup {
   receivedByName?: string;
   receivedAt?: Date;
   items: { equipmentName: string; quantity: number }[];
-  representative: LoanRequest; // un item para acciones
+  representative: LoanRequest;
 }
 
 function groupLoans(loans: LoanRequest[]): LoanGroup[] {
@@ -60,44 +60,47 @@ function groupLoans(loans: LoanRequest[]): LoanGroup[] {
 }
 
 export default function AdminLoansPage() {
-  const [loans, setLoans] = useState<LoanRequest[]>([]);
+  const [loans, setLoans]                   = useState<LoanRequest[]>([]);
   const [workingGroupId, setWorkingGroupId] = useState<string | null>(null);
-  const { addNotification } = useNotifications();
+  const [scannerOpen, setScannerOpen]       = useState(false);
+  const [rejectTarget, setRejectTarget]     = useState<LoanGroup | null>(null);
+  const [rejectReason, setRejectReason]     = useState('');
+  const [rejecting, setRejecting]           = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        const data = await fetchAdminLoans();
-        if (isMounted) setLoans(data);
-      } catch {
-        if (isMounted) setLoans([]);
-      }
-    };
-    load();
-    return () => { isMounted = false; };
-  }, []);
+  const { addNotification } = useNotifications();
 
   const reload = async () => {
     const data = await fetchAdminLoans();
     setLoans(data);
   };
 
+  // Auto-refresco cada 8 segundos
+  useAutoRefresh(reload, 8_000);
+
   const handleApprove = async (group: LoanGroup) => {
     setWorkingGroupId(group.groupId);
     try {
       await updateLoanStatus(group.groupId, 'ACTIVO');
       await reload();
-      addNotification('Préstamo entregado', 'Se registró el encargado que entregó el equipo.', 'success');
+      addNotification('Préstamo aprobado', 'El equipo fue marcado como entregado.', 'success');
     } finally { setWorkingGroupId(null); }
   };
 
-  const handleReject = async (group: LoanGroup) => {
-    setWorkingGroupId(group.groupId);
+  const openRejectDialog = (group: LoanGroup) => {
+    setRejectTarget(group);
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    setRejecting(true);
     try {
-      await updateLoanStatus(group.groupId, 'RECHAZADO');
+      await updateLoanStatus(rejectTarget.groupId, 'RECHAZADO', rejectReason.trim() || undefined);
       await reload();
-    } finally { setWorkingGroupId(null); }
+      setRejectTarget(null);
+    } finally {
+      setRejecting(false);
+    }
   };
 
   const handleMarkReturned = async (group: LoanGroup) => {
@@ -105,7 +108,7 @@ export default function AdminLoansPage() {
     try {
       await markLoanAsReturned(group.groupId);
       await reload();
-      addNotification('Recepción registrada', 'Se guardó el encargado que recibió el equipo de vuelta.', 'success');
+      addNotification('Devolución registrada', 'El equipo fue recibido de vuelta.', 'success');
     } finally { setWorkingGroupId(null); }
   };
 
@@ -130,15 +133,17 @@ export default function AdminLoansPage() {
   };
 
   const navItems = [
-    { label: 'Dashboard', href: '/admin', icon: <BarChart3 className="w-4 h-4" /> },
-    { label: 'Equipos', href: '/admin/equipment', icon: <Package className="w-4 h-4" /> },
-    { label: 'Préstamos', href: '/admin/loans', icon: <FileText className="w-4 h-4" /> },
-    { label: 'Sanciones', href: '/admin/sanctions', icon: <AlertTriangle className="w-4 h-4" /> },
+    { label: 'Dashboard',  href: '/admin',           icon: <BarChart3 className="w-4 h-4" /> },
+    { label: 'Equipos',    href: '/admin/equipment',  icon: <Package className="w-4 h-4" /> },
+    { label: 'Préstamos',  href: '/admin/loans',      icon: <FileText className="w-4 h-4" /> },
+    { label: 'Sanciones',  href: '/admin/sanctions',  icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const allGroups = groupLoans(loans);
-  const activeGroups = allGroups.filter(g => g.status === 'pending' || g.status === 'approved');
-  const closedGroups = allGroups.filter(g => g.status === 'returned' || g.status === 'rejected');
+  const allGroups    = groupLoans(loans);
+  const sortByDate   = (a: LoanGroup, b: LoanGroup) =>
+    new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime();
+  const activeGroups = allGroups.filter(g => g.status === 'pending' || g.status === 'approved').sort(sortByDate);
+  const closedGroups = allGroups.filter(g => g.status === 'returned' || g.status === 'rejected').sort(sortByDate);
 
   const renderGroup = (group: LoanGroup, closed = false) => {
     const working = workingGroupId === group.groupId;
@@ -156,7 +161,6 @@ export default function AdminLoansPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Lista de equipos */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Equipos solicitados</p>
             <ul className="divide-y divide-border rounded-lg border">
@@ -169,7 +173,6 @@ export default function AdminLoansPage() {
             </ul>
           </div>
 
-          {/* Fechas */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase">Fecha Solicitud</p>
@@ -195,13 +198,10 @@ export default function AdminLoansPage() {
           {group.receivedAt && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase">Fecha de recepción</p>
-              <p className="text-sm text-foreground">
-                {new Date(group.receivedAt).toLocaleString('es-NI')}
-              </p>
+              <p className="text-sm text-foreground">{new Date(group.receivedAt).toLocaleString('es-NI')}</p>
             </div>
           )}
 
-          {/* Acciones */}
           {!closed && (
             <div className="flex gap-2 pt-1">
               {group.status === 'pending' ? (
@@ -212,16 +212,16 @@ export default function AdminLoansPage() {
                     disabled={working}
                   >
                     <CheckCircle className="w-4 h-4" />
-                    {working ? 'Actualizando...' : 'Aceptar'}
+                    {working ? 'Actualizando...' : 'Aprobar'}
                   </Button>
                   <Button
-                    onClick={() => handleReject(group)}
+                    onClick={() => openRejectDialog(group)}
                     variant="outline"
-                    className="flex-1 border-red-600 text-red-600 hover:bg-red-600 hover:text-white gap-2"
+                    className="flex-1 border-red-500 text-red-600 hover:bg-red-600 hover:text-white gap-2"
                     disabled={working}
                   >
                     <XCircle className="w-4 h-4" />
-                    {working ? 'Actualizando...' : 'Denegar'}
+                    Rechazar
                   </Button>
                 </>
               ) : (
@@ -247,9 +247,17 @@ export default function AdminLoansPage() {
 
       <main className="min-h-screen bg-background lg:pl-72">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground">Préstamos</h2>
-            <p className="text-muted-foreground">Gestiona las solicitudes de préstamo</p>
+          <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground">Préstamos</h2>
+              <p className="text-muted-foreground">Gestiona las solicitudes de préstamo</p>
+            </div>
+            <Button
+              onClick={() => setScannerOpen(true)}
+              className="bg-green-700 hover:bg-green-800 text-white gap-2"
+            >
+              <QrCode className="w-4 h-4" /> Escanear QR 📷
+            </Button>
           </div>
 
           {activeGroups.length > 0 && (
@@ -283,6 +291,56 @@ export default function AdminLoansPage() {
           )}
         </div>
       </main>
+
+      {/* ── MODAL: Escáner QR ── */}
+      <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-green-600" /> Escáner QR
+            </DialogTitle>
+            <DialogDescription>
+              Apunta la cámara al código QR del estudiante para aprobar o registrar una devolución.
+            </DialogDescription>
+          </DialogHeader>
+          <QrScanner />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL: Rechazar con motivo ── */}
+      <Dialog open={!!rejectTarget} onOpenChange={(open) => { if (!open) setRejectTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="w-5 h-5" /> Rechazar Solicitud #{rejectTarget?.groupId}
+            </DialogTitle>
+            <DialogDescription>
+              Puedes escribir el motivo del rechazo. Si lo dejas vacío, el estudiante solo verá &quot;Solicitud rechazada&quot;.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <textarea
+              className="w-full min-h-[100px] rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="Motivo del rechazo (opcional)…"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRejectTarget(null)} disabled={rejecting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmReject}
+              disabled={rejecting}
+            >
+              {rejecting ? 'Rechazando...' : 'Confirmar Rechazo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </ProtectedLayout>
   );
 }

@@ -61,10 +61,12 @@ export function BorrowDialog({ equipment, open, onOpenChange }: BorrowDialogProp
 
   if (!equipment) return null;
 
-  const today = new Date().toISOString().split('T')[0];
   const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split('T')[0];
+  
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 2);
+  const maxDateStr = maxDate.toISOString().split('T')[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,6 +113,7 @@ export function BorrowDialog({ equipment, open, onOpenChange }: BorrowDialogProp
                 id="due-date"
                 type="date"
                 min={minDateStr}
+                max={maxDateStr}
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="border-input"

@@ -4,6 +4,7 @@ from django.db.models import F
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from django.utils import timezone
+from django.db import transaction
 
 # --- MODELO ESTUDIANTE ---
 class Estudiante(AbstractUser):
@@ -86,29 +87,32 @@ class Prestamo(models.Model):
         if self.pk:
             viejo_prestamo = Prestamo.objects.get(pk=self.pk)
             if viejo_prestamo.estado == 'ACTIVO' and self.estado != 'ACTIVO':
-                for detalle in self.detalles.all():
-                    detalle.equipo.refresh_from_db()
-                    detalle.equipo.cantidad_disponible = F('cantidad_disponible') + detalle.cantidad
-                    detalle.equipo.save(update_fields=['cantidad_disponible'])
+                with transaction.atomic():
+                    for detalle in self.detalles.all():
+                        equipo = Equipo.objects.select_for_update().get(pk=detalle.equipo.pk)
+                        equipo.cantidad_disponible = F('cantidad_disponible') + detalle.cantidad
+                        equipo.save(update_fields=['cantidad_disponible'])
             
             # Reactivar un ticket devuelto (resta otra vez)
             elif viejo_prestamo.estado != 'ACTIVO' and self.estado == 'ACTIVO':
-                for detalle in self.detalles.all():
-                    detalle.equipo.refresh_from_db()
-                    if detalle.equipo.cantidad_disponible >= detalle.cantidad:
-                        detalle.equipo.cantidad_disponible = F('cantidad_disponible') - detalle.cantidad
-                        detalle.equipo.save(update_fields=['cantidad_disponible'])
-                    else:
-                        raise ValidationError(f"¡Faltan '{detalle.equipo.nombre}' en bodega para reactivar!")
+                with transaction.atomic():
+                    for detalle in self.detalles.all():
+                        equipo = Equipo.objects.select_for_update().get(pk=detalle.equipo.pk)
+                        if equipo.cantidad_disponible >= detalle.cantidad:
+                            equipo.cantidad_disponible = F('cantidad_disponible') - detalle.cantidad
+                            equipo.save(update_fields=['cantidad_disponible'])
+                        else:
+                            raise ValidationError(f"¡Faltan '{equipo.nombre}' en bodega para reactivar!")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # Si borramos el ticket entero, regresamos todo a la bodega
         if self.estado == 'ACTIVO':
-            for detalle in self.detalles.all():
-                detalle.equipo.refresh_from_db()
-                detalle.equipo.cantidad_disponible = F('cantidad_disponible') + detalle.cantidad
-                detalle.equipo.save(update_fields=['cantidad_disponible'])
+            with transaction.atomic():
+                for detalle in self.detalles.all():
+                    equipo = Equipo.objects.select_for_update().get(pk=detalle.equipo.pk)
+                    equipo.cantidad_disponible = F('cantidad_disponible') + detalle.cantidad
+                    equipo.save(update_fields=['cantidad_disponible'])
         super().delete(*args, **kwargs)
 
 # --- NUEVO: MODELO DETALLE_PRESTAMO (LAS LÍNEAS DEL CARRITO) ---
@@ -123,20 +127,22 @@ class DetallePrestamo(models.Model):
     def save(self, *args, **kwargs):
         # Cuando se agrega un equipo al carrito, se resta de la bodega
         if not self.pk and self.prestamo.estado == 'ACTIVO':
-            self.equipo.refresh_from_db()
-            if self.equipo.cantidad_disponible >= self.cantidad:
-                self.equipo.cantidad_disponible = F('cantidad_disponible') - self.cantidad
-                self.equipo.save(update_fields=['cantidad_disponible'])
-            else:
-                raise ValidationError(f"¡Solo hay {self.equipo.cantidad_disponible} '{self.equipo.nombre}' disponibles!")
+            with transaction.atomic():
+                equipo = Equipo.objects.select_for_update().get(pk=self.equipo.pk)
+                if equipo.cantidad_disponible >= self.cantidad:
+                    equipo.cantidad_disponible = F('cantidad_disponible') - self.cantidad
+                    equipo.save(update_fields=['cantidad_disponible'])
+                else:
+                    raise ValidationError(f"¡Solo hay {equipo.cantidad_disponible} '{equipo.nombre}' disponibles!")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # Si quitan un equipo del carrito, lo devolvemos a la bodega
         if self.prestamo.estado == 'ACTIVO':
-            self.equipo.refresh_from_db()
-            self.equipo.cantidad_disponible = F('cantidad_disponible') + self.cantidad
-            self.equipo.save(update_fields=['cantidad_disponible'])
+            with transaction.atomic():
+                equipo = Equipo.objects.select_for_update().get(pk=self.equipo.pk)
+                equipo.cantidad_disponible = F('cantidad_disponible') + self.cantidad
+                equipo.save(update_fields=['cantidad_disponible'])
         super().delete(*args, **kwargs)
 
 

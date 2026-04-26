@@ -14,6 +14,10 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from .models import Estudiante, Equipo, Prestamo, Sancion
 from .serializers import EstudianteSerializer, EquipoSerializer, PrestamoSerializer, SancionSerializer
+import os
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from django.conf import settings
 
 User = get_user_model()
 
@@ -108,6 +112,9 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if not estudiante or estudiante.id != self.request.user.id:
             raise PermissionDenied('Solo puedes crear préstamos para tu propio usuario.')
 
+        if not self.request.user.carnet or not self.request.user.carrera:
+            raise PermissionDenied('Debes completar tu perfil (carnet y carrera) antes de solicitar equipos.')
+
         serializer.save(estado='PENDIENTE')
 
     def perform_update(self, serializer):
@@ -129,6 +136,41 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             save_kwargs['fecha_recepcion'] = None
 
         serializer.save(**save_kwargs)
+
+    @action(detail=False, methods=['post'])
+    def procesar_atrasados(self, request):
+        if not request.user.is_staff:
+            raise PermissionDenied('Solo administradores pueden procesar préstamos atrasados.')
+            
+        hoy = timezone.localdate()
+        
+        # Buscar préstamos ACTIVOS cuya fecha_devolucion (solo fecha) sea menor a hoy
+        # Como fecha_devolucion es DateTimeField, comparamos su fecha.
+        from django.db import transaction
+        
+        prestamos_atrasados = Prestamo.objects.filter(
+            estado='ACTIVO', 
+            fecha_devolucion__date__lt=hoy
+        )
+        
+        contador = 0
+        with transaction.atomic():
+            for prestamo in prestamos_atrasados:
+                prestamo.estado = 'ATRASADO'
+                prestamo.save(update_fields=['estado'])
+                
+                # Crear la sanción automática
+                from .models import Sancion
+                Sancion.objects.create(
+                    estudiante=prestamo.estudiante,
+                    motivo=f'Devolución tardía automática del Ticket #{prestamo.id}',
+                    observaciones='El sistema ha detectado que la fecha límite de devolución ha expirado.',
+                    severidad='restriction',
+                    activa=True
+                )
+                contador += 1
+                
+        return Response({'detail': f'Se procesaron {contador} préstamos atrasados.'})
 
 
 class SancionViewSet(viewsets.ModelViewSet):
@@ -226,3 +268,90 @@ def exportar_reporte_excel(request):
     
     wb.save(response)
     return response
+
+
+# ==========================================
+# 3. GOOGLE LOGIN Y PERFIL
+# ==========================================
+
+class GoogleLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token_google = request.data.get('credential')
+        if not token_google:
+            return Response({'detail': 'Token no proporcionado.'}, status=400)
+
+        try:
+            # Validar el token con Google permitiendo un pequeño desfase de reloj (clock skew)
+            client_id = getattr(settings, 'GOOGLE_CLIENT_ID', os.getenv('GOOGLE_CLIENT_ID', ''))
+            idinfo = id_token.verify_oauth2_token(
+                token_google, 
+                google_requests.Request(), 
+                client_id,
+                clock_skew_in_seconds=15
+            )
+
+            email = idinfo.get('email', '')
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+
+            # Verificar dominios permitidos
+            dominios_permitidos = ['@est.ulsa.edu.ni', '@ulsa.edu.ni', '@ac.ulsa.edu.ni']
+            if not any(email.endswith(dominio) for dominio in dominios_permitidos):
+                return Response({'detail': 'Dominio no autorizado. Usa tu correo de la universidad.'}, status=403)
+
+            # Buscar o crear usuario
+            user, created = User.objects.get_or_create(username=email, defaults={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name
+            })
+
+            # Generar token DRF
+            token, _ = Token.objects.get_or_create(user=user)
+
+            # Verificar si necesita completar perfil (solo estudiantes)
+            requiere_perfil = False
+            if email.endswith('@est.ulsa.edu.ni'):
+                if not user.carnet or not user.carrera:
+                    requiere_perfil = True
+
+            return Response({
+                'token': token.key,
+                'requiere_completar_perfil': requiere_perfil,
+                'user': {
+                    'id': str(user.id),
+                    'email': user.email,
+                    'name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                    'role': 'admin' if (user.is_staff or user.is_superuser) else 'student',
+                }
+            })
+
+        except ValueError as e:
+            print(f"Error de Google Auth: {str(e)}")
+            return Response({'detail': f'Token inválido: {str(e)}'}, status=401)
+
+
+import re
+
+class CompletarPerfilView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        carnet = request.data.get('carnet')
+        carrera = request.data.get('carrera')
+
+        if not carnet or not carrera:
+            return Response({'detail': 'Carnet y carrera son obligatorios.'}, status=400)
+
+        carnet_regex = r'^\d{2}-[a-zA-Z0-9\-]{5,}$'
+        if not re.match(carnet_regex, carnet):
+            return Response({'detail': 'El formato del carnet es inválido.'}, status=400)
+
+        user.carnet = carnet
+        user.carrera = carrera
+        user.save(update_fields=['carnet', 'carrera'])
+
+        return Response({'detail': 'Perfil actualizado correctamente.'})

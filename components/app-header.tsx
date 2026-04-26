@@ -35,7 +35,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const showCartShortcut = user?.role === 'student' && pathname.startsWith('/dashboard');
+  const showCartShortcut = user?.role === 'student';
 
   const handleLogout = () => {
     logout();
@@ -76,7 +76,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
           <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.14)] backdrop-blur-md">
             {showCartShortcut && (
               <Link
-                href="/dashboard?view=cart"
+                href="/prestamos?view=cart"
                 className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50"
                 aria-label="Abrir carrito"
               >

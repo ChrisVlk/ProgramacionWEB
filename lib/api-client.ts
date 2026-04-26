@@ -61,6 +61,7 @@ interface BackendPrestamo {
 interface BackendLoginResponse {
   token: string;
   user: User;
+  requiere_completar_perfil?: boolean;
 }
 
 interface BackendSancion {
@@ -398,25 +399,32 @@ export async function createLoan(payload: {
   estado?: 'PENDIENTE' | 'ACTIVO';
   fecha_devolucion?: string;
   detalles: Array<{ equipo: number; cantidad: number }>;
-}): Promise<void> {
-  await apiRequest('/prestamos/', {
+}): Promise<{ id: number }> {
+  const data = await apiRequest<BackendPrestamo>('/prestamos/', {
     method: 'POST',
     body: {
       ...payload,
       estado: payload.estado || 'PENDIENTE',
     },
   });
+  return { id: data.id };
+}
+
+export async function fetchLoanById(loanId: string): Promise<LoanRequest[]> {
+  const data = await apiRequest<BackendPrestamo>(`/prestamos/${loanId}/`);
+  return mapLoans([data]);
 }
 
 export async function updateLoanStatus(
   loanGroupId: string,
   status: 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO' | 'PENDIENTE',
+  motivoRechazo?: string,
 ): Promise<void> {
+  const body: Record<string, string> = { estado: status };
+  if (motivoRechazo) body.motivo_rechazo = motivoRechazo;
   await apiRequest(`/prestamos/${loanGroupId}/`, {
     method: 'PATCH',
-    body: {
-      estado: status,
-    },
+    body,
   });
 }
 
@@ -492,4 +500,25 @@ export function downloadBlob(blob: Blob, filename: string) {
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+export async function loginWithGoogleApi(credential: string): Promise<BackendLoginResponse> {
+  return apiRequest<BackendLoginResponse>('/auth/google/', {
+    method: 'POST',
+    auth: false,
+    body: { credential },
+  });
+}
+
+export async function completarPerfilApi(carnet: string, carrera: string): Promise<void> {
+  await apiRequest('/auth/completar-perfil/', {
+    method: 'POST',
+    body: { carnet, carrera },
+  });
+}
+
+export async function procesarAtrasadosApi(): Promise<{ detail: string }> {
+  return apiRequest<{ detail: string }>('/prestamos/procesar_atrasados/', {
+    method: 'POST',
+  });
 }

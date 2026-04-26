@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { fetchStudentLoans } from '@/lib/api-client';
 import { LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Home, FileCheck } from 'lucide-react';
+import { Home, FileCheck, ShoppingCart, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ReturnQrModal } from '@/components/return-qr-modal';
+import { useAutoRefresh } from '@/lib/use-auto-refresh';
 
 interface LoanGroup {
   groupId: string;
@@ -47,30 +50,20 @@ function groupLoans(loans: LoanRequest[]): LoanGroup[] {
 }
 
 export default function StudentLoansPage() {
-  const [loans, setLoans] = useState<LoanRequest[]>([]);
+  const [loans, setLoans]     = useState<LoanRequest[]>([]);
+  const [returnModal, setReturnModal] = useState<{ id: string; items: string[] } | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadLoans = async () => {
-      try {
-        const data = await fetchStudentLoans();
-        if (isMounted) {
-          setLoans(data);
-        }
-      } catch {
-        if (isMounted) {
-          setLoans([]);
-        }
-      }
-    };
-
-    loadLoans();
-
-    return () => {
-      isMounted = false;
-    };
+  const loadLoans = useCallback(async () => {
+    try {
+      const data = await fetchStudentLoans();
+      setLoans(data);
+    } catch {
+      setLoans([]);
+    }
   }, []);
+
+  // Auto-refresco cada 8 segundos
+  useAutoRefresh(loadLoans, 8_000);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -103,11 +96,22 @@ export default function StudentLoansPage() {
   };
 
   const navItems = [
-    { label: 'Catálogo', href: '/dashboard', icon: <Home className="w-4 h-4" /> },
+    { label: 'Inicio',        href: '/dashboard',      icon: <Home className="w-4 h-4" /> },
+    { label: 'Catálogo',      href: '/prestamos',       icon: <ShoppingCart className="w-4 h-4" /> },
     { label: 'Mis Préstamos', href: '/dashboard/loans', icon: <FileCheck className="w-4 h-4" /> },
   ];
 
-  const groupedLoans = groupLoans(loans);
+  const STATUS_ORDER: Record<string, number> = {
+    pending: 0, approved: 1, returned: 2, rejected: 3,
+  };
+
+  const groupedLoans = groupLoans(loans).sort((a, b) => {
+    // Activos/pendientes primero, luego histórico
+    const statusDiff = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    if (statusDiff !== 0) return statusDiff;
+    // Dentro de cada grupo, más reciente primero
+    return new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime();
+  });
 
   return (
     <ProtectedLayout allowedRoles={['student']}>
@@ -179,6 +183,22 @@ export default function StudentLoansPage() {
                       <p className="text-sm text-foreground">{request.notes}</p>
                     </div>
                   )}
+                  {/* Botón Devolver: solo para préstamos ACTIVOS o ATRASADOS */}
+                  {(request.status === 'approved' || (request as { backendStatus?: string }).backendStatus === 'ATRASADO') && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-green-600 text-green-700 hover:bg-green-600 hover:text-white gap-2"
+                        onClick={() => setReturnModal({
+                          id: request.groupId,
+                          items: request.items.map(i => i.equipmentName),
+                        })}
+                      >
+                        <RotateCcw className="w-4 h-4" /> Devolver Equipo
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -186,7 +206,7 @@ export default function StudentLoansPage() {
               <Card>
                 <CardContent className="pt-8 pb-8 text-center">
                   <p className="text-muted-foreground mb-4">No tienes solicitudes de préstamo aún</p>
-                  <a href="/dashboard" className="text-primary hover:underline text-sm font-semibold">
+                  <a href="/prestamos" className="text-primary hover:underline text-sm font-semibold">
                     Ir al catálogo →
                   </a>
                 </CardContent>
@@ -195,6 +215,12 @@ export default function StudentLoansPage() {
           </div>
         </div>
       </main>
+
+      <ReturnQrModal
+        loanId={returnModal?.id ?? null}
+        equipmentNames={returnModal?.items ?? []}
+        onClose={() => setReturnModal(null)}
+      />
     </ProtectedLayout>
   );
 }

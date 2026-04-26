@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, AuthContextType } from './types';
-import { AUTH_TOKEN_KEY, fetchCurrentUser, loginWithApi } from '@/lib/api-client';
+import { AUTH_TOKEN_KEY, fetchCurrentUser, loginWithApi, loginWithGoogleApi } from '@/lib/api-client';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -63,8 +64,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithGoogle = useCallback(async (_credential: string) => {
-    throw new Error('Google sign-in is not configured in backend yet.');
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    setLoading(true);
+    try {
+      const response = await loginWithGoogleApi(credential);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(AUTH_TOKEN_KEY, response.token);
+      }
+      setUser(response.user);
+      return response; // Devolvemos todo el response para ver si requiere perfil
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const logout = useCallback(() => {
@@ -75,9 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
+      <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, logout }}>
+        {children}
+      </AuthContext.Provider>
+    </GoogleOAuthProvider>
   );
 }
 

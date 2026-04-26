@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Estudiante, Equipo, Prestamo, DetallePrestamo, Sancion
 
 # --- TRADUCTOR DE ESTUDIANTES ---
@@ -37,6 +38,11 @@ class DetallePrestamoSerializer(serializers.ModelSerializer):
         model = DetallePrestamo
         fields = ['id', 'equipo', 'equipo_detalle', 'cantidad']
 
+    def validate_cantidad(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La cantidad solicitada debe ser mayor a 0.")
+        return value
+
 # --- TRADUCTOR DEL TICKET PRINCIPAL (PRESTAMO) ---
 class PrestamoSerializer(serializers.ModelSerializer):
     estudiante_detalle = EstudianteSerializer(source='estudiante', read_only=True)
@@ -62,6 +68,21 @@ class PrestamoSerializer(serializers.ModelSerializer):
             'detalles',
         ]
         read_only_fields = ['entregado_por', 'recibido_por', 'fecha_recepcion']
+
+    def validate_fecha_devolucion(self, value):
+        if not value:
+            return value
+        
+        hoy = timezone.localdate()
+        fecha = value.date() if hasattr(value, 'date') else value
+        
+        diferencia = (fecha - hoy).days
+        if diferencia < 0:
+            raise serializers.ValidationError("La fecha de devolución no puede estar en el pasado.")
+        if diferencia > 2:
+            raise serializers.ValidationError("El equipo no puede estar prestado por más de 2 días.")
+            
+        return value
 
     # MAGIA: Le enseñamos a Django cómo desarmar el paquete JSON de Christoffer y guardarlo en las 2 tablas
     def create(self, validated_data):

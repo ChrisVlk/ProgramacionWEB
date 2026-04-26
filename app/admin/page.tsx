@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { AppHeader } from '@/components/app-header';
 import { ReportsDownload } from '@/components/reports-download';
-import { fetchAdminLoans, fetchEquipment } from '@/lib/api-client';
+import { fetchAdminLoans, fetchEquipment, procesarAtrasadosApi } from '@/lib/api-client';
 import { Equipment, LoanRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -13,16 +13,29 @@ import {
   FileText,
   AlertTriangle
 } from 'lucide-react';
+import { DashboardCharts } from '@/components/dashboard-charts';
+import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loans, setLoans] = useState<LoanRequest[]>([]);
+  const [lastPendingCount, setLastPendingCount] = useState<number>(0);
 
   useEffect(() => {
     let isMounted = true;
+    let syncInterval: NodeJS.Timeout;
 
-    const loadData = async () => {
+    const loadData = async (isSilent = false) => {
       try {
+        // Disparador silencioso: Procesa sanciones automáticas por atrasos (solo al inicio)
+        if (!isSilent) {
+          try {
+            await procesarAtrasadosApi();
+          } catch (e) {
+            console.error('Error procesando atrasados:', e);
+          }
+        }
+
         const [equipmentData, loansData] = await Promise.all([
           fetchEquipment(),
           fetchAdminLoans(),
@@ -31,17 +44,46 @@ export default function AdminDashboard() {
         if (!isMounted) return;
         setEquipment(equipmentData);
         setLoans(loansData);
+        
+        // Live Sync: Detectar nuevas solicitudes pendientes
+        const currentPending = loansData.filter(l => l.status === 'PENDIENTE' || l.status === 'pending').length;
+        setLastPendingCount(prev => {
+          if (isSilent && currentPending > prev) {
+            // Reproducir sonido sutil
+            try {
+              const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-09.mp3');
+              audio.volume = 0.5;
+              audio.play();
+            } catch (e) {
+              console.error('Audio play failed', e);
+            }
+            
+            toast.success('¡Nueva Solicitud!', {
+              description: 'Un estudiante acaba de solicitar un préstamo.',
+            });
+          }
+          return currentPending;
+        });
+        
       } catch {
         if (!isMounted) return;
-        setEquipment([]);
-        setLoans([]);
+        if (!isSilent) {
+          setEquipment([]);
+          setLoans([]);
+        }
       }
     };
 
     loadData();
 
+    // Sincronización en vivo cada 10 segundos
+    syncInterval = setInterval(() => {
+      loadData(true);
+    }, 10000);
+
     return () => {
       isMounted = false;
+      clearInterval(syncInterval);
     };
   }, []);
 
@@ -134,6 +176,8 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          <DashboardCharts loans={loans} equipment={equipment} />
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
