@@ -5,5 +5,6 @@ djangorestframework==3.16.1
 et_xmlfile==2.0.0
 openpyxl==3.1.5
 psycopg[binary]
+Pillow
 sqlparse==0.5.5
 tzdata==2025.3
