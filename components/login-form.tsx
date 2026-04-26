@@ -167,15 +167,10 @@ export function LoginForm() {
                 </div>
               </form>
 
-              <div className="mt-6 p-3 bg-muted rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  Usa tus credenciales reales del backend para acceder.
-                </p>
-              </div>
             </CardContent>
           </Card>
 
-          <p className="text-center text-xs text-muted-foreground mt-6">
+          <p className="text-center text-xs text-white/70 md:text-muted-foreground mt-6 drop-shadow-md md:drop-shadow-none">
             Universidad Tecnológica La Salle © 2026
           </p>
         </div>
