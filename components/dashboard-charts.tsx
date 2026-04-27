@@ -39,10 +39,10 @@ export function DashboardCharts({ loans }: DashboardChartsProps) {
 
   // 2. Calcular Estado de Préstamos (Pie Chart)
   const statusData = useMemo(() => {
-    const pending = loans.filter(l => l.status === 'PENDIENTE').length;
-    const active = loans.filter(l => l.status === 'ACTIVO').length;
-    const returned = loans.filter(l => l.status === 'DEVUELTO').length;
-    const late = loans.filter(l => l.status === 'ATRASADO').length;
+    const pending = loans.filter(l => l.status === 'pending' || l.backendStatus === 'PENDIENTE').length;
+    const active = loans.filter(l => l.status === 'approved' || l.backendStatus === 'ACTIVO').length;
+    const returned = loans.filter(l => l.status === 'returned' || l.backendStatus === 'DEVUELTO').length;
+    const late = loans.filter(l => l.backendStatus === 'ATRASADO').length;
 
     return [
       { name: 'Pendientes', value: pending, color: '#eab308' }, // yellow-500

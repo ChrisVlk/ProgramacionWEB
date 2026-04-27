@@ -50,21 +50,31 @@ export default function AdminDashboard() {
         const currentPending = loansData.filter(l => l.status === 'pending').length;
         setLastPendingCount(prev => {
           if (isSilent && currentPending > prev) {
-            // Reproducir sonido sutil
             try {
-              const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-09.mp3');
-              audio.volume = 0.5;
-              audio.play();
+              // Sonido generado por código (no depende de URLs externas)
+              const ctx = new AudioContext();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.setValueAtTime(880, ctx.currentTime);
+              gain.gain.setValueAtTime(0.3, ctx.currentTime);
+              osc.start();
+              osc.stop(ctx.currentTime + 0.25);
             } catch (e) {
               console.error('Audio play failed', e);
             }
             
             // Notificación nativa del sistema operativo (WhatsApp style)
-            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-              new Notification('¡Nueva Solicitud en MOSQ!', {
-                body: 'Un estudiante acaba de solicitar un préstamo.',
-                icon: '/icon.png',
-              });
+            try {
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('¡Nueva Solicitud en MOSQ!', {
+                  body: 'Un estudiante acaba de solicitar un préstamo.',
+                  icon: '/icon.png',
+                });
+              }
+            } catch (e) {
+              console.error('Native notification failed', e);
             }
 
             addNotification('¡Nueva Solicitud!', 'Un estudiante acaba de solicitar un préstamo.', 'info');
