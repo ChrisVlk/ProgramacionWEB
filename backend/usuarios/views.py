@@ -154,16 +154,11 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         serializer.save(estado='PENDIENTE')
 
     def perform_update(self, serializer):
-        estado_actual = serializer.instance.estado
-        nuevo_estado = serializer.validated_data.get('estado', estado_actual)
-
-        # Permitir a estudiantes cancelar (rechazar) sus propios préstamos pendientes
         if not (self.request.user.is_staff or self.request.user.is_superuser):
-            if serializer.instance.estudiante == self.request.user and estado_actual == 'PENDIENTE' and nuevo_estado == 'RECHAZADO':
-                serializer.save(motivo_rechazo=serializer.validated_data.get('motivo_rechazo', 'Cancelado por el estudiante'))
-                return
             raise PermissionDenied('Solo administradores pueden actualizar préstamos.')
 
+        estado_actual = serializer.instance.estado
+        nuevo_estado = serializer.validated_data.get('estado', estado_actual)
         save_kwargs = {}
 
         if nuevo_estado == 'ACTIVO' and estado_actual != 'ACTIVO':
@@ -177,6 +172,27 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             save_kwargs['fecha_recepcion'] = None
 
         serializer.save(**save_kwargs)
+
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        """Permite al estudiante cancelar su propio préstamo PENDIENTE."""
+        prestamo = self.get_object()
+        
+        # Solo el dueño puede cancelar
+        if prestamo.estudiante != request.user:
+            raise PermissionDenied('Solo puedes cancelar tus propios préstamos.')
+        
+        # Solo se pueden cancelar préstamos pendientes
+        if prestamo.estado != 'PENDIENTE':
+            return Response(
+                {'detail': 'Solo se pueden cancelar préstamos en estado PENDIENTE.'},
+                status=400
+            )
+        
+        prestamo.estado = 'RECHAZADO'
+        prestamo.save(update_fields=['estado'])
+        
+        return Response({'detail': 'Préstamo cancelado exitosamente.'})
 
     @action(detail=False, methods=['post'])
     def procesar_atrasados(self, request):

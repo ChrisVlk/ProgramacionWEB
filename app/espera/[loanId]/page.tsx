@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchLoanById, updateLoanStatus } from '@/lib/api-client';
+import { fetchLoanById, cancelLoan } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import QRCode from 'react-qr-code';
 import { Loader2, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -61,7 +61,7 @@ function EsperaContent() {
   const handleCancel = async () => {
     setCancelling(true);
     try {
-      await updateLoanStatus(loanId, 'RECHAZADO', 'Cancelado por el estudiante');
+      await cancelLoan(loanId);
       localStorage.removeItem(PENDING_LOAN_KEY);
       router.push('/prestamos');
     } catch {

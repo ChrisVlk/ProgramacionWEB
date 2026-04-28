@@ -437,6 +437,12 @@ export async function markLoanAsReturned(loanGroupId: string): Promise<void> {
   });
 }
 
+export async function cancelLoan(loanId: string): Promise<void> {
+  await apiRequest(`/prestamos/${loanId}/cancelar/`, {
+    method: 'POST',
+  });
+}
+
 export async function fetchSanctions(): Promise<Sanction[]> {
   const data = await apiRequest<BackendSancion[]>('/sanciones/');
   return data.map(mapSanction);
