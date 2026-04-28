@@ -66,6 +66,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
             'fecha_recepcion',
             'estado',
             'solicitante_externo',
+            'observaciones',
             'detalles',
         ]
         read_only_fields = ['entregado_por', 'recibido_por', 'fecha_recepcion']

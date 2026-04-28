@@ -63,6 +63,7 @@ class Prestamo(models.Model):
     fecha_recepcion = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS_PRESTAMO, default='PENDIENTE')
     solicitante_externo = models.CharField(max_length=150, null=True, blank=True, help_text='Nombre del solicitante externo (entrenador, etc.)')
+    observaciones = models.TextField(blank=True, null=True, help_text='Notas adicionales sobre el préstamo')
 
     def __str__(self):
         nombre = self.solicitante_externo or self.estudiante.username

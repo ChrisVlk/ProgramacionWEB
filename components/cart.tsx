@@ -62,6 +62,7 @@ export const Cart: React.FC = () => {
       const { id } = await createLoan({
         estudiante: Number(user.id),
         fecha_devolucion: dueDate,
+        observaciones: notes || undefined,
         detalles: cart.map((item) => ({
           equipo: Number(item.equipment.id),
           cantidad: item.quantity,

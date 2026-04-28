@@ -39,6 +39,7 @@ export function SpecialLoanDialog({ open, onOpenChange, onSuccess }: SpecialLoan
   
   const [solicitante, setSolicitante] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
   const [selectedItems, setSelectedItems] = useState<SelectedEquipment[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +50,7 @@ export function SpecialLoanDialog({ open, onOpenChange, onSuccess }: SpecialLoan
       // Reset form
       setSolicitante('');
       setDueDate('');
+      setNotes('');
       setSelectedItems([]);
       setError('');
     }
@@ -109,6 +111,7 @@ export function SpecialLoanDialog({ open, onOpenChange, onSuccess }: SpecialLoan
         estado: 'ACTIVO',
         solicitante_externo: solicitante.trim(),
         fecha_devolucion: dueDate || undefined,
+        observaciones: notes.trim() || undefined,
         detalles: selectedItems.map(item => ({
           equipo: Number(item.id),
           cantidad: item.quantity,
@@ -152,6 +155,16 @@ export function SpecialLoanDialog({ open, onOpenChange, onSuccess }: SpecialLoan
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notas / Observaciones (Opcional)</Label>
+            <Input
+              id="notes"
+              placeholder="Ej. Torneo fin de semana"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 

@@ -236,6 +236,13 @@ export default function AdminLoansPage() {
             </div>
           )}
 
+          {group.representative?.notes && (
+            <div className="bg-muted/50 p-3 rounded-md">
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notas / Observaciones</p>
+              <p className="text-sm text-foreground">{group.representative.notes}</p>
+            </div>
+          )}
+
           {!closed && (
             <div className="flex gap-2 pt-1">
               {group.status === 'pending' ? (

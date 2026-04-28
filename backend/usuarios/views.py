@@ -164,7 +164,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         estado_actual = serializer.instance.estado
-        nuevo_estado = serializer.validated_data.get('estado', estado_actual)
+        nuevo_estado = self.request.data.get('estado', estado_actual)
 
         # Permitir a estudiantes cancelar sus propios préstamos pendientes
         if not (self.request.user.is_staff or self.request.user.is_superuser):
@@ -303,8 +303,8 @@ def exportar_reporte_excel(request):
 
     encabezados = [
         'Fecha de Entrega', 'Hora de Entrega', 'Fecha de Devolución', 'Hora de Devolución',
-        'N° Carnet', 'Nombre del Estudiante', 'Carrera', 'Año', 
-        'Descripción del Equipo', 'Cantidad', 'Entregado Por (Admin)', 'Recibido Por (Admin)'
+        'N° Carnet', 'Nombre del Estudiante / Solicitante Externo', 'Carrera', 'Año', 
+        'Descripción del Equipo', 'Cantidad', 'Entregado Por (Admin)', 'Recibido Por (Admin)', 'Observaciones'
     ]
     ws.append(encabezados)
 
@@ -318,6 +318,7 @@ def exportar_reporte_excel(request):
         hora_d = p.fecha_recepcion.strftime('%H:%M:%S') if p.fecha_recepcion else 'Pendiente'
         entregado_por = p.entregado_por.username if p.entregado_por else 'N/A'
         recibido_por = p.recibido_por.username if p.recibido_por else 'Pendiente'
+        nombre_persona = p.solicitante_externo if p.solicitante_externo else f"{p.estudiante.first_name} {p.estudiante.last_name}"
 
         # MAGIA: Recorremos cada línea del carrito para este ticket
         for detalle in p.detalles.all():
@@ -326,14 +327,15 @@ def exportar_reporte_excel(request):
                 hora_p,
                 fecha_d,
                 hora_d,
-                p.estudiante.carnet or 'Sin registro',
-                f"{p.estudiante.first_name} {p.estudiante.last_name}",
-                p.estudiante.carrera or 'Sin registro',
-                p.estudiante.ano_cursado or 'Sin registro',
+                p.estudiante.carnet or 'N/A',
+                nombre_persona,
+                p.estudiante.carrera or 'N/A',
+                p.estudiante.ano_cursado or 'N/A',
                 detalle.equipo.nombre, # El nombre de lo que prestó
                 detalle.cantidad,      # <--- ¡LA CANTIDAD REAL!
                 entregado_por,
-                recibido_por
+                recibido_por,
+                p.observaciones or ''
             ]
             ws.append(fila)
 

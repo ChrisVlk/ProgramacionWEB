@@ -56,6 +56,7 @@ interface BackendPrestamo {
   fecha_recepcion: string | null;
   estado: 'PENDIENTE' | 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO';
   solicitante_externo?: string | null;
+  observaciones?: string | null;
   detalles: BackendDetallePrestamo[];
 }
 
@@ -284,6 +285,7 @@ function mapLoans(prestamos: BackendPrestamo[]): LoanRequest[] {
       studentCareer: prestamo.estudiante_detalle?.carrera || undefined,
       studentYear: prestamo.estudiante_detalle?.ano_cursado || undefined,
       solicitante_externo: prestamo.solicitante_externo || null,
+      notes: prestamo.observaciones || undefined,
       equipmentId: String(detalle.equipo),
       equipmentName: detalle.equipo_detalle?.nombre || `Equipo #${detalle.equipo}`,
       quantity: detalle.cantidad,
@@ -402,6 +404,7 @@ export async function createLoan(payload: {
   estado?: 'PENDIENTE' | 'ACTIVO';
   fecha_devolucion?: string;
   solicitante_externo?: string;
+  observaciones?: string;
   detalles: Array<{ equipo: number; cantidad: number }>;
 }): Promise<{ id: number }> {
   const data = await apiRequest<BackendPrestamo>('/prestamos/', {
@@ -447,7 +450,8 @@ export async function cancelLoan(loanId: string): Promise<void> {
     await apiRequest(`/prestamos/${loanId}/cancelar/`, {
       method: 'POST',
     });
-  } catch {
+  } catch (error) {
+    console.warn('Dedicated cancel endpoint failed, falling back to PATCH', error);
     // Fallback: use PATCH to set status to RECHAZADO
     await apiRequest(`/prestamos/${loanId}/`, {
       method: 'PATCH',
