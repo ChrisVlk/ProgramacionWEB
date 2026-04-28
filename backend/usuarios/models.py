@@ -62,9 +62,11 @@ class Prestamo(models.Model):
     fecha_devolucion = models.DateTimeField(null=True, blank=True)
     fecha_recepcion = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS_PRESTAMO, default='PENDIENTE')
+    solicitante_externo = models.CharField(max_length=150, null=True, blank=True, help_text='Nombre del solicitante externo (entrenador, etc.)')
 
     def __str__(self):
-        return f"Ticket #{self.id} - {self.estudiante.username}"
+        nombre = self.solicitante_externo or self.estudiante.username
+        return f"Ticket #{self.id} - {nombre}"
 
     def save(self, *args, **kwargs):
         # 1. Bloqueos de Seguridad

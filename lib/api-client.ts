@@ -55,6 +55,7 @@ interface BackendPrestamo {
   fecha_devolucion: string | null;
   fecha_recepcion: string | null;
   estado: 'PENDIENTE' | 'ACTIVO' | 'DEVUELTO' | 'RECHAZADO' | 'ATRASADO';
+  solicitante_externo?: string | null;
   detalles: BackendDetallePrestamo[];
 }
 
@@ -267,7 +268,8 @@ function formatPersonName(person?: {
 
 function mapLoans(prestamos: BackendPrestamo[]): LoanRequest[] {
   return prestamos.flatMap((prestamo) => {
-    const studentName = `${prestamo.estudiante_detalle?.first_name || ''} ${prestamo.estudiante_detalle?.last_name || ''}`.trim()
+    const studentName = prestamo.solicitante_externo 
+      || `${prestamo.estudiante_detalle?.first_name || ''} ${prestamo.estudiante_detalle?.last_name || ''}`.trim()
       || prestamo.estudiante_detalle?.username
       || 'Estudiante';
     const deliveredByName = formatPersonName(prestamo.entregado_por_detalle);
@@ -281,6 +283,7 @@ function mapLoans(prestamos: BackendPrestamo[]): LoanRequest[] {
       studentCardId: prestamo.estudiante_detalle?.carnet || undefined,
       studentCareer: prestamo.estudiante_detalle?.carrera || undefined,
       studentYear: prestamo.estudiante_detalle?.ano_cursado || undefined,
+      solicitante_externo: prestamo.solicitante_externo || null,
       equipmentId: String(detalle.equipo),
       equipmentName: detalle.equipo_detalle?.nombre || `Equipo #${detalle.equipo}`,
       quantity: detalle.cantidad,
@@ -398,6 +401,7 @@ export async function createLoan(payload: {
   estudiante: number;
   estado?: 'PENDIENTE' | 'ACTIVO';
   fecha_devolucion?: string;
+  solicitante_externo?: string;
   detalles: Array<{ equipo: number; cantidad: number }>;
 }): Promise<{ id: number }> {
   const data = await apiRequest<BackendPrestamo>('/prestamos/', {

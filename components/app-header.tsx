@@ -47,13 +47,16 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
       <header className="sticky top-0 z-50 bg-gradient-to-r from-[#2d5a27] to-[#1e3a1a] text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
         <div className="w-full px-3 sm:px-4 lg:px-6 h-16 sm:h-24 flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="p-2 rounded-lg hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50 lg:hidden"
-              aria-label="Abrir menú"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            {/* Solo mostramos la hamburguesa a los admins en móvil */}
+            {user?.role !== 'student' && (
+              <button
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="p-2 rounded-lg hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50 lg:hidden"
+                aria-label="Abrir menú"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            )}
 
             <div className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur-md">
               <Image
@@ -95,6 +98,15 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
               aria-label="Cambiar tema"
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            {/* Logout para móvil visible siempre en el header */}
+            <button
+              onClick={handleLogout}
+              className="flex lg:hidden h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50 text-red-300 hover:text-red-400 transition-colors"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
 
             <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-sm font-bold">

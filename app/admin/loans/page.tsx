@@ -18,9 +18,10 @@ import {
 } from '@/components/ui/dialog';
 import {
   BarChart3, Package, FileText, AlertTriangle,
-  CheckCircle, XCircle, QrCode,
+  CheckCircle, XCircle, QrCode, Plus,
 } from 'lucide-react';
 import { useAutoRefresh } from '@/lib/use-auto-refresh';
+import { SpecialLoanDialog } from '@/components/special-loan-dialog';
 
 interface LoanGroup {
   groupId: string;
@@ -65,7 +66,8 @@ function groupLoans(loans: LoanRequest[]): LoanGroup[] {
 export default function AdminLoansPage() {
   const [loans, setLoans]                   = useState<LoanRequest[]>([]);
   const [workingGroupId, setWorkingGroupId] = useState<string | null>(null);
-  const [scannerOpen, setScannerOpen]       = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [specialLoanOpen, setSpecialLoanOpen] = useState(false);
   const [rejectTarget, setRejectTarget]     = useState<LoanGroup | null>(null);
   const [rejectReason, setRejectReason]     = useState('');
   const [rejecting, setRejecting]           = useState(false);
@@ -284,12 +286,21 @@ export default function AdminLoansPage() {
               <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Préstamos</h2>
               <p className="text-sm sm:text-base text-muted-foreground">Gestiona las solicitudes de préstamo</p>
             </div>
-            <Button
-              onClick={() => setScannerOpen(true)}
-              className="bg-green-700 hover:bg-green-800 text-white gap-2"
-            >
-              <QrCode className="w-4 h-4" /> Escanear QR 📷
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setSpecialLoanOpen(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" /> Préstamo Especial
+              </Button>
+              <Button
+                onClick={() => setScannerOpen(true)}
+                className="bg-green-700 hover:bg-green-800 text-white gap-2"
+              >
+                <QrCode className="w-4 h-4" /> Escanear QR 📷
+              </Button>
+            </div>
           </div>
 
           {activeGroups.length > 0 && (
@@ -448,6 +459,14 @@ export default function AdminLoansPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <SpecialLoanDialog 
+        open={specialLoanOpen} 
+        onOpenChange={setSpecialLoanOpen}
+        onSuccess={() => {
+          addNotification('Préstamo Especial Creado', 'El préstamo activo ha sido creado con éxito.', 'success');
+          reload();
+        }}
+      />
 
     </ProtectedLayout>
   );

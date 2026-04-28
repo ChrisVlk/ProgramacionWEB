@@ -45,6 +45,7 @@ export interface LoanRequest {
   deliveredByName?: string;
   receivedByName?: string;
   notes?: string;
+  solicitante_externo?: string | null;
 }
 
 export interface Sanction {
