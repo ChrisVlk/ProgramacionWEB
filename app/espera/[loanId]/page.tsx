@@ -72,17 +72,17 @@ function EsperaContent() {
   // ── PANTALLA APROBADO ──
   if (screen === 'approved') {
     return (
-      <div className="fixed inset-0 z-[100] bg-green-50 dark:bg-green-950 flex flex-col items-center justify-center p-8 text-center">
-        <CheckCircle2 className="w-24 h-24 text-green-500 mb-6 animate-bounce" />
-        <h1 className="text-4xl font-extrabold text-green-800 dark:text-green-200 mb-3">
+      <div className="fixed inset-0 z-[100] bg-green-50 dark:bg-green-950 flex flex-col items-center justify-center p-6 sm:p-8 text-center overflow-y-auto">
+        <CheckCircle2 className="w-16 h-16 sm:w-24 sm:h-24 text-green-500 mb-4 sm:mb-6 animate-bounce" />
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-green-800 dark:text-green-200 mb-2 sm:mb-3">
           ¡Préstamo Aprobado!
         </h1>
-        <p className="text-lg text-green-700 dark:text-green-300 mb-8">
+        <p className="text-base sm:text-lg text-green-700 dark:text-green-300 mb-6 sm:mb-8">
           El encargado aprobó tu solicitud. ¡Ve a recoger tu equipo a la bodega!
         </p>
         <Button
           onClick={() => router.push('/dashboard/loans')}
-          className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-6"
+          className="bg-green-600 hover:bg-green-700 text-white text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
         >
           Ver mis préstamos
         </Button>
@@ -93,24 +93,24 @@ function EsperaContent() {
   // ── PANTALLA RECHAZADO ──
   if (screen === 'rejected') {
     return (
-      <div className="fixed inset-0 z-[100] bg-red-50 dark:bg-red-950 flex flex-col items-center justify-center p-8 text-center">
-        <XCircle className="w-24 h-24 text-red-500 mb-6" />
-        <h1 className="text-4xl font-extrabold text-red-800 dark:text-red-200 mb-3">
+      <div className="fixed inset-0 z-[100] bg-red-50 dark:bg-red-950 flex flex-col items-center justify-center p-6 sm:p-8 text-center overflow-y-auto">
+        <XCircle className="w-16 h-16 sm:w-24 sm:h-24 text-red-500 mb-4 sm:mb-6" />
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-red-800 dark:text-red-200 mb-2 sm:mb-3">
           Préstamo Rechazado
         </h1>
         {rejectionReason ? (
-          <div className="bg-white dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-xl px-6 py-4 mb-8 max-w-md">
+          <div className="bg-white dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-xl px-5 sm:px-6 py-3 sm:py-4 mb-6 sm:mb-8 max-w-md">
             <p className="text-sm font-semibold text-red-600 dark:text-red-400 mb-1">Motivo:</p>
-            <p className="text-red-800 dark:text-red-200">{rejectionReason}</p>
+            <p className="text-red-800 dark:text-red-200 text-sm sm:text-base">{rejectionReason}</p>
           </div>
         ) : (
-          <p className="text-lg text-red-700 dark:text-red-300 mb-8">
+          <p className="text-base sm:text-lg text-red-700 dark:text-red-300 mb-6 sm:mb-8">
             Tu solicitud fue rechazada por el administrador.
           </p>
         )}
         <Button
           onClick={() => router.push('/prestamos')}
-          className="bg-red-600 hover:bg-red-700 text-white text-lg px-8 py-6"
+          className="bg-red-600 hover:bg-red-700 text-white text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
         >
           Volver al Catálogo
         </Button>
@@ -120,23 +120,23 @@ function EsperaContent() {
 
   // ── PANTALLA ESPERANDO ──
   return (
-    <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-start sm:justify-center overflow-y-auto p-4 sm:p-6">
       {/* Indicador de pulso */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mt-8 sm:mt-0 mb-6 sm:mb-8">
         <span className="relative flex h-4 w-4">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500" />
         </span>
-        <p className="text-lg font-semibold text-muted-foreground">
+        <p className="text-base sm:text-lg font-semibold text-muted-foreground">
           Esperando respuesta del administrador…
         </p>
       </div>
 
       {/* QR */}
-      <div className="bg-white p-6 rounded-2xl shadow-2xl border border-border mb-6">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-2xl border border-border mb-4 sm:mb-6">
         <QRCode
           value={`MOSQ-LOAN-${loanId}`}
-          size={220}
+          size={180}
           bgColor="#ffffff"
           fgColor="#166534"
         />
@@ -150,7 +150,7 @@ function EsperaContent() {
       </div>
 
       {/* Aviso */}
-      <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3 mt-4 max-w-sm text-center">
+      <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3 mt-3 sm:mt-4 max-w-sm text-center">
         <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
         <p className="text-xs text-yellow-700 dark:text-yellow-300">
           No cierres esta pantalla. Si recargas la página volverás aquí automáticamente.
@@ -160,7 +160,7 @@ function EsperaContent() {
       {/* Cancelar */}
       <Button
         variant="outline"
-        className="mt-8 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500"
+        className="mt-6 sm:mt-8 mb-8 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500"
         onClick={handleCancel}
         disabled={cancelling}
       >

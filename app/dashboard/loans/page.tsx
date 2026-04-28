@@ -118,10 +118,10 @@ export default function StudentLoansPage() {
       <AppHeader title="Mis Préstamos" navItems={navItems} />
 
       <main className="min-h-screen bg-background lg:pl-72">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground mb-2">Mis Préstamos</h2>
-            <p className="text-muted-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-mobile-nav">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-2xl sm:text-2xl font-bold text-foreground mb-2">Mis Préstamos</h2>
+            <p className="text-sm text-muted-foreground">
               Gestiona todas tus solicitudes de préstamo
             </p>
           </div>

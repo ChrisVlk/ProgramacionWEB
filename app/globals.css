@@ -125,3 +125,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Safe area padding for iOS notch devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Clearance for mobile bottom nav (64px nav + safe area) */
+.pb-mobile-nav {
+  padding-bottom: 5rem; /* 80px = 64px nav + 16px breathing room */
+}
+
+@media (min-width: 768px) {
+  .pb-mobile-nav {
+    padding-bottom: 2rem; /* md+ screens: normal padding */
+  }
+}
+

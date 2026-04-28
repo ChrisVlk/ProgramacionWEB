@@ -45,8 +45,8 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-50 bg-gradient-to-r from-[#2d5a27] to-[#1e3a1a] text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-        <div className="w-full px-3 sm:px-4 lg:px-6 h-24 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 h-16 sm:h-24 flex items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               className="p-2 rounded-lg hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50 lg:hidden"
@@ -68,8 +68,8 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
             </div>
 
             <div>
-              <h1 className="text-3xl font-black leading-none tracking-tight">MOSQ</h1>
-              <p className="text-sm text-white/75">{title}</p>
+              <h1 className="text-xl sm:text-3xl font-black leading-none tracking-tight">MOSQ</h1>
+              <p className="text-xs sm:text-sm text-white/75 truncate max-w-[150px] sm:max-w-none">{title}</p>
             </div>
           </div>
 
@@ -156,7 +156,7 @@ export function AppHeader({ title, navItems }: AppHeaderProps) {
       </aside>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 top-24 z-50 flex lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-16 sm:top-24 z-50 flex lg:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileMenuOpen(false)}

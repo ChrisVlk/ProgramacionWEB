@@ -70,16 +70,16 @@ function PrestamosPageContent() {
 
       <main className="min-h-screen bg-background lg:pl-72">
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-8 py-8">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 pb-mobile-nav">
             {activeTab === 'catalog' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-3xl font-bold text-foreground mb-2">Equipo Disponible</h2>
-                  <p className="text-muted-foreground">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Equipo Disponible</h2>
+                  <p className="text-sm sm:text-base text-muted-foreground">
                     Selecciona un equipo para agregarlo al carrito
                   </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {equipment.map((eq) => (
                     <EquipmentCardMinimal
                       key={eq.id}
@@ -98,14 +98,14 @@ function PrestamosPageContent() {
 
             {activeTab === 'cart' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-3xl font-bold text-foreground mb-2">Mi Carrito de Préstamo</h2>
-                    <p className="text-muted-foreground">Revisa y envía tu solicitud de préstamo</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">Mi Carrito de Préstamo</h2>
+                    <p className="text-sm text-muted-foreground">Revisa y envía tu solicitud de préstamo</p>
                   </div>
                   <button
                     onClick={() => switchTab('catalog')}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm shrink-0"
                   >
                     ← Volver al Catálogo
                   </button>

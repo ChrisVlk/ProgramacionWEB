@@ -132,26 +132,26 @@ export default function StudentHome() {
       <AppHeader title="Mi Panel" navItems={navItems} />
 
       <main className="min-h-screen bg-background lg:pl-72">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-mobile-nav space-y-6 sm:space-y-8">
 
           {/* ── BIENVENIDA ── */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-8 text-white shadow-lg">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-5 sm:p-8 text-white shadow-lg">
             <div className="relative z-10">
-              <p className="text-green-200 text-sm font-medium mb-1">Bienvenido de vuelta 👋</p>
-              <h1 className="text-4xl font-extrabold tracking-tight">{firstName}</h1>
-              <p className="mt-2 text-green-100 max-w-md">
+              <p className="text-green-200 text-xs sm:text-sm font-medium mb-1">Bienvenido de vuelta 👋</p>
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">{firstName}</h1>
+              <p className="mt-1 sm:mt-2 text-green-100 max-w-md text-sm sm:text-base">
                 Aquí puedes ver el resumen de tus préstamos y estadísticas personales.
               </p>
               <Link
                 href="/prestamos"
-                className="mt-4 inline-flex items-center gap-2 bg-white text-green-700 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors shadow"
+                className="mt-3 sm:mt-4 inline-flex items-center gap-2 bg-white text-green-700 font-semibold text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl hover:bg-green-50 transition-colors shadow"
               >
                 <Package className="w-4 h-4" /> Ir al Catálogo
               </Link>
             </div>
             {/* decoración */}
-            <div className="absolute -right-12 -top-12 w-56 h-56 bg-white/10 rounded-full" />
-            <div className="absolute -right-4 -bottom-8 w-36 h-36 bg-white/10 rounded-full" />
+            <div className="absolute -right-12 -top-12 w-36 sm:w-56 h-36 sm:h-56 bg-white/10 rounded-full" />
+            <div className="absolute -right-4 -bottom-8 w-24 sm:w-36 h-24 sm:h-36 bg-white/10 rounded-full" />
           </div>
 
           {/* ── ALERTAS DE SANCIONES ── */}

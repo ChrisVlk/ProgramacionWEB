@@ -98,15 +98,15 @@ export default function AdminDashboard() {
       <main className="min-h-screen bg-background lg:pl-72">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground">Resumen</h2>
-            <p className="text-muted-foreground">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Resumen</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Vista general del sistema de préstamos
             </p>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             <Card className="border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-white dark:from-green-950 dark:to-slate-950 shadow-sm hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">
