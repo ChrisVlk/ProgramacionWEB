@@ -154,11 +154,16 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         serializer.save(estado='PENDIENTE')
 
     def perform_update(self, serializer):
-        if not (self.request.user.is_staff or self.request.user.is_superuser):
-            raise PermissionDenied('Solo administradores pueden actualizar préstamos.')
-
         estado_actual = serializer.instance.estado
         nuevo_estado = serializer.validated_data.get('estado', estado_actual)
+
+        # Permitir a estudiantes cancelar (rechazar) sus propios préstamos pendientes
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            if serializer.instance.estudiante == self.request.user and estado_actual == 'PENDIENTE' and nuevo_estado == 'RECHAZADO':
+                serializer.save(motivo_rechazo=serializer.validated_data.get('motivo_rechazo', 'Cancelado por el estudiante'))
+                return
+            raise PermissionDenied('Solo administradores pueden actualizar préstamos.')
+
         save_kwargs = {}
 
         if nuevo_estado == 'ACTIVO' and estado_actual != 'ACTIVO':

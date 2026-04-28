@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Loader } from 'lucide-react';
 
+import { AdminNotifications } from '@/components/admin-notifications';
+
 interface ProtectedLayoutProps {
   children: React.ReactNode;
   allowedRoles?: ('student' | 'admin')[];
@@ -37,5 +39,10 @@ export function ProtectedLayout({ children, allowedRoles }: ProtectedLayoutProps
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {user.role === 'admin' && <AdminNotifications />}
+      {children}
+    </>
+  );
 }

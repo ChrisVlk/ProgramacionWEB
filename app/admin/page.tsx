@@ -20,7 +20,6 @@ export default function AdminDashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loans, setLoans] = useState<LoanRequest[]>([]);
   const [lastPendingCount, setLastPendingCount] = useState<number>(0);
-  const { addNotification } = useNotifications();
 
   useEffect(() => {
     let isMounted = true;
@@ -48,56 +47,7 @@ export default function AdminDashboard() {
         
         // Live Sync: Detectar nuevas solicitudes pendientes
         const currentPending = loansData.filter(l => l.status === 'pending').length;
-        setLastPendingCount(prev => {
-          if (isSilent && currentPending > prev) {
-            try {
-              // Sonido generado por código (no depende de URLs externas)
-              const ctx = new AudioContext();
-              
-              // Función para tocar una nota
-              const playNote = (freq: number, startTime: number, duration: number) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(freq, startTime);
-                
-                // Envolvente de volumen para que suene agradable
-                gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.05);
-                
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-              };
-
-              const t = ctx.currentTime;
-              // Secuencia: Do5 - Mi5 - Sol5 - Do6 (Arpegio ascendente)
-              playNote(523.25, t, 0.15);       // C5
-              playNote(659.25, t + 0.15, 0.15); // E5
-              playNote(783.99, t + 0.30, 0.15); // G5
-              playNote(1046.50, t + 0.45, 0.4); // C6 (más larga)
-            } catch (e) {
-              console.error('Audio play failed', e);
-            }
-            
-            // Notificación nativa del sistema operativo (WhatsApp style)
-            try {
-              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                new Notification('¡Nueva Solicitud en MOSQ!', {
-                  body: 'Un estudiante acaba de solicitar un préstamo.',
-                  icon: '/icon.png',
-                });
-              }
-            } catch (e) {
-              console.error('Native notification failed', e);
-            }
-
-            addNotification('¡Nueva Solicitud!', 'Un estudiante acaba de solicitar un préstamo.', 'info');
-          }
-          return currentPending;
-        });
+        setLastPendingCount(currentPending);
         
       } catch {
         if (!isMounted) return;
