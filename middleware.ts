@@ -9,7 +9,7 @@ const BYPASS_COOKIE = 'mosq_bypass';
 const BYPASS_TOKEN  = 'ulsa-dev-2025';
 
 // Rutas que NO necesitan verificación
-const PUBLIC_PATHS = ['/sin-acceso', '/login', '/_next', '/favicon', '/ESTRELLASALLE'];
+const PUBLIC_PATHS = ['/sin-acceso', '/login', '/_next', '/favicon', '/ESTRELLASALLE', '/manifest.json'];
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
