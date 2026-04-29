@@ -99,29 +99,34 @@ function resolveEquipmentImage(name: string): string {
     return toPublicPath('reddefutbol.png');
   }
 
+  if (normalizedName.includes('guante') && (normalizedName.includes('futbol') || normalizedName.includes('fútbol') || normalizedName.includes('portero'))) {
+    return toPublicPath('guantefutbol.png');
+  }
+
   if (
-    normalizedName.includes('basq')
-    || normalizedName.includes('bsq')
+    normalizedName.includes('baloncesto')
+    || normalizedName.includes('basket')
+    || normalizedName.includes('basquet')
+    || normalizedName.includes('básquet')
+    || normalizedName.includes('básquetbol')
+    || normalizedName.includes('basquetbol')
   ) {
     return toPublicPath('basketball.png');
   }
 
   if (
-    normalizedName.includes('soft')
-    || normalizedName.includes('sft')
+    normalizedName.includes('softball')
+    || normalizedName.includes('softbol')
+    || normalizedName.includes('sóftbol')
   ) {
     return toPublicPath('bolasoftball.png');
   }
 
-  if (normalizedName.includes('guante') && (normalizedName.includes('fut') || normalizedName.includes('portero'))) {
-    return toPublicPath('guantefutbol.png');
-  }
-
-  if (normalizedName.includes('fut')) {
+  if (normalizedName.includes('futbol') || normalizedName.includes('fútbol')) {
     return toPublicPath('balonfutbol.png');
   }
 
-  if (normalizedName.includes('beis') || normalizedName.includes('bis')) {
+  if (normalizedName.includes('beisbol') || normalizedName.includes('béisbol')) {
     if (normalizedName.includes('bate')) {
       return toPublicPath('batebeisbol.png');
     }
@@ -130,7 +135,7 @@ function resolveEquipmentImage(name: string): string {
       return toPublicPath('guantebeisbol.png');
     }
 
-    if (normalizedName.includes('protec')) {
+    if (normalizedName.includes('proteccion') || normalizedName.includes('protección')) {
       return toPublicPath('proteccion de beisbol.png');
     }
 
@@ -145,18 +150,17 @@ function resolveEquipmentImage(name: string): string {
   }
 
   if (
-    normalizedName.includes('voll')
-    || normalizedName.includes('voly')
-    || normalizedName.includes('volu')
-    || normalizedName.includes('vole')
+    normalizedName.includes('volley')
+    || normalizedName.includes('voleibol')
+    || normalizedName.includes('volleyball')
   ) {
-    if (normalizedName.includes('pelota') || normalizedName.includes('balon') || normalizedName.includes('baln')) {
+    if (normalizedName.includes('pelota') || normalizedName.includes('balon') || normalizedName.includes('balón')) {
       return toPublicPath('bolaVolleyball.png');
     }
     return toPublicPath('redvolley.png');
   }
 
-  if (normalizedName.includes('tablero')) {
+  if (normalizedName.includes('tablero') || normalizedName.includes('ajedrez')) {
     return toPublicPath('tablero.png');
   }
 
