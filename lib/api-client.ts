@@ -148,6 +148,7 @@ function resolveEquipmentImage(name: string): string {
     normalizedName.includes('voll')
     || normalizedName.includes('voly')
     || normalizedName.includes('volu')
+    || normalizedName.includes('vole')
   ) {
     if (normalizedName.includes('pelota') || normalizedName.includes('balon') || normalizedName.includes('baln')) {
       return toPublicPath('bolaVolleyball.png');
