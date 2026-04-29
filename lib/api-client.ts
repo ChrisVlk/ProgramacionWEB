@@ -89,17 +89,20 @@ function toPublicPath(fileName: string): string {
   return encodeURI(`/${fileName}`);
 }
 
-function resolveEquipmentImage(name: string): string {
-  const normalizedName = name.toLowerCase();
+// Normaliza un string quitando acentos/tildes para comparaciones robustas.
+// "Sóftbol" → "softbol", "Fútbol" → "futbol", "Béisbol" → "beisbol"
+function stripAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
 
-  if (
-    normalizedName.includes('red')
-    && (normalizedName.includes('futbol') || normalizedName.includes('fútbol'))
-  ) {
+function resolveEquipmentImage(name: string): string {
+  const normalizedName = stripAccents(name.toLowerCase());
+
+  if (normalizedName.includes('red') && normalizedName.includes('futbol')) {
     return toPublicPath('reddefutbol.png');
   }
 
-  if (normalizedName.includes('guante') && (normalizedName.includes('futbol') || normalizedName.includes('fútbol') || normalizedName.includes('portero'))) {
+  if (normalizedName.includes('guante') && (normalizedName.includes('futbol') || normalizedName.includes('portero'))) {
     return toPublicPath('guantefutbol.png');
   }
 
@@ -107,8 +110,6 @@ function resolveEquipmentImage(name: string): string {
     normalizedName.includes('baloncesto')
     || normalizedName.includes('basket')
     || normalizedName.includes('basquet')
-    || normalizedName.includes('básquet')
-    || normalizedName.includes('básquetbol')
     || normalizedName.includes('basquetbol')
   ) {
     return toPublicPath('basketball.png');
@@ -117,16 +118,19 @@ function resolveEquipmentImage(name: string): string {
   if (
     normalizedName.includes('softball')
     || normalizedName.includes('softbol')
-    || normalizedName.includes('sóftbol')
   ) {
     return toPublicPath('bolasoftball.png');
   }
 
-  if (normalizedName.includes('futbol') || normalizedName.includes('fútbol')) {
+  if (normalizedName.includes('chaleco')) {
     return toPublicPath('balonfutbol.png');
   }
 
-  if (normalizedName.includes('beisbol') || normalizedName.includes('béisbol')) {
+  if (normalizedName.includes('futbol')) {
+    return toPublicPath('balonfutbol.png');
+  }
+
+  if (normalizedName.includes('beisbol')) {
     if (normalizedName.includes('bate')) {
       return toPublicPath('batebeisbol.png');
     }
@@ -135,7 +139,7 @@ function resolveEquipmentImage(name: string): string {
       return toPublicPath('guantebeisbol.png');
     }
 
-    if (normalizedName.includes('proteccion') || normalizedName.includes('protección')) {
+    if (normalizedName.includes('proteccion') || normalizedName.includes('mascara')) {
       return toPublicPath('proteccion de beisbol.png');
     }
 
@@ -149,12 +153,8 @@ function resolveEquipmentImage(name: string): string {
     return toPublicPath('conospeque.png');
   }
 
-  if (
-    normalizedName.includes('volley')
-    || normalizedName.includes('voleibol')
-    || normalizedName.includes('volleyball')
-  ) {
-    if (normalizedName.includes('pelota') || normalizedName.includes('balon') || normalizedName.includes('balón')) {
+  if (normalizedName.includes('voleibol') || normalizedName.includes('volley') || normalizedName.includes('volleyball')) {
+    if (normalizedName.includes('pelota') || normalizedName.includes('balon')) {
       return toPublicPath('bolaVolleyball.png');
     }
     return toPublicPath('redvolley.png');
