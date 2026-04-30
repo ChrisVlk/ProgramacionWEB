@@ -21,4 +21,7 @@ urlpatterns = [
     
     # NUEVA RUTA: El enlace directo para descargar el Excel
     path('reportes/excel/', views.exportar_reporte_excel, name='reporte_excel'),
+
+    # TEMPORAL: Limpiar imágenes rotas
+    path('fix-images/', views.clear_broken_images_view, name='fix_images'),
 ]

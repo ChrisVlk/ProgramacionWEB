@@ -441,3 +441,19 @@ class CompletarPerfilView(APIView):
         user.save(update_fields=['carnet', 'carrera', 'ano_cursado'])
 
         return Response({'detail': 'Perfil actualizado correctamente.'})
+
+from django.http import JsonResponse
+def clear_broken_images_view(request):
+    cleared = []
+    for e in Equipo.objects.exclude(imagen=''):
+        exists = False
+        if e.imagen:
+            try:
+                exists = os.path.exists(e.imagen.path)
+            except Exception:
+                pass
+        if not exists:
+            cleared.append(e.id)
+            e.imagen = None
+            e.save()
+    return JsonResponse({"cleared_ids": cleared})
