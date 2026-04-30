@@ -332,6 +332,8 @@ export async function fetchEquipment(): Promise<Equipment[]> {
 
 export async function createEquipment(payload: {
   nombre: string;
+  marca_modelo?: string;
+  color?: string;
   descripcion?: string;
   cantidad_total: number;
   cantidad_disponible: number;
@@ -339,6 +341,8 @@ export async function createEquipment(payload: {
 }): Promise<Equipment> {
   const formData = new FormData();
   formData.append('nombre', payload.nombre);
+  if (payload.marca_modelo) formData.append('marca_modelo', payload.marca_modelo);
+  if (payload.color) formData.append('color', payload.color);
   if (payload.descripcion) formData.append('descripcion', payload.descripcion);
   formData.append('cantidad_total', String(payload.cantidad_total));
   formData.append('cantidad_disponible', String(payload.cantidad_disponible));
@@ -356,6 +360,8 @@ export async function updateEquipment(
   equipmentId: string,
   payload: {
     nombre: string;
+    marca_modelo?: string;
+    color?: string;
     descripcion?: string;
     cantidad_total: number;
     cantidad_disponible: number;
@@ -364,13 +370,15 @@ export async function updateEquipment(
 ): Promise<Equipment> {
   const formData = new FormData();
   formData.append('nombre', payload.nombre);
-  if (payload.descripcion) formData.append('descripcion', payload.descripcion);
+  if (payload.marca_modelo !== undefined) formData.append('marca_modelo', payload.marca_modelo);
+  if (payload.color !== undefined) formData.append('color', payload.color);
+  if (payload.descripcion !== undefined) formData.append('descripcion', payload.descripcion);
   formData.append('cantidad_total', String(payload.cantidad_total));
   formData.append('cantidad_disponible', String(payload.cantidad_disponible));
   if (payload.imagen) formData.append('imagen', payload.imagen);
 
   const data = await apiRequest<BackendEquipo>(`/equipos/${equipmentId}/`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: formData,
   });
 

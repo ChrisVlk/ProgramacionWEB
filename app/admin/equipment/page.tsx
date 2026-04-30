@@ -108,6 +108,8 @@ export default function AdminEquipmentPage() {
     if (editingId && editingId !== 'new') {
       const updated = await updateEquipment(editingId, {
         nombre,
+        marca_modelo: formData.marca_modelo || '',
+        color: formData.color || '',
         descripcion,
         cantidad_total: cantidadTotal,
         cantidad_disponible: cantidadDisponible,
@@ -117,6 +119,8 @@ export default function AdminEquipmentPage() {
     } else {
       const created = await createEquipment({
         nombre,
+        marca_modelo: formData.marca_modelo || '',
+        color: formData.color || '',
         descripcion,
         cantidad_total: cantidadTotal,
         cantidad_disponible: cantidadDisponible,
